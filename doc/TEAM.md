@@ -22,7 +22,7 @@ ghi đúng phần mình đã làm; mỗi người cần có commit trong repo ch
 
 Người tích hợp/nộp link: Đỗ Trung Tuyến — đã chạy batch Phase C
 (`scripts/run_experiments.py --phase c --live --latency-samples 20`), sẽ nộp link bản cuối. Sinh 50 answers, chạy Phase A/B,
-viết `failure_clusters.md`/`bias_report.md` và chạy `scripts/check_lab.py`: giao cho thành viên có máy đủ RAM
+điền các mục "CHỜ KẾT QUẢ" trong `failure_clusters.md`/`bias_report.md` và chạy `scripts/check_lab.py`: giao cho thành viên có máy đủ RAM
 (máy trưởng nhóm không chạy được setup, xem mục dưới); người thực hiện tự ghi vào bảng và INDIVIDUAL của mình.
 
 ## Môi trường và chuẩn bị trước lớp
@@ -75,7 +75,13 @@ và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy s
   - Code Phase A/B mới được kiểm bằng unit tests (mock); **chưa chạy live** vì chưa có `answers_50q.json`.
   - **Báo cáo nhóm:** `doc/reports/blueprint.md` — kiến trúc guard, failure action, bảng latency, CI gates và monitoring đề xuất
     (phần số liệu Phase A/B để trống chờ lần chạy của thành viên khác).
-- Bằng chứng: commits trên `main`; `artifacts/guard_results.json`
+  - **Phần chuẩn bị báo cáo Phase A/B (không cần chạy model):** trong `failure_clusters.md`, phân tích 10 câu bẫy adversarial
+    từ đề và corpus (version conflict 41–45, 49; phủ định 46–48; mâu thuẫn chính sách 50), phát hiện `nghi_phep_nam_v2023.md`
+    không ghi trạng thái hết hiệu lực trong khi `mat_khau_v1.md` có, và dòng ngữ cảnh m5 chỉ ghi tên phiên bản; đề xuất sửa.
+    Trong `bias_report.md`, đối chiếu 5 candidate B và 10 model_answer với reference, nêu ca dễ lệch (1, 12, 29) và tính độ
+    nhạy κ theo số nhãn lệch.
+- Bằng chứng: commits trên `main`; `doc/reports/failure_clusters.md`, `doc/reports/bias_report.md` (phần đã viết);
+  `artifacts/guard_results.json`
   (attacks 20/20, clean 8/8 allowed, false_positive_rate 0.0, output 4/4, input guard P95 795.57 ms);
   `doc/reports/blueprint.md`.
 - Cách kiểm tra: `python -m pytest tests/ -q` → 86 passed (mock, không gọi API); chạy thật Presidio trên 28 inputs trước khi
