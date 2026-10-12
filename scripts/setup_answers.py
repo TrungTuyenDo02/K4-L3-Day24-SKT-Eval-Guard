@@ -83,7 +83,7 @@ def build_pipeline():
 
 
 def run_query(q: str, search, reranker, top_k: int, client=None) -> tuple[str, list[str], str, str | None]:
-    from config import OPENAI_API_KEY
+    from config import GEMINI_API_KEY, GEMINI_OPENAI_BASE_URL, OPENAI_API_KEY
 
     results = search.search(q)
     docs    = [{"text": r.text, "score": r.score, "metadata": r.metadata} for r in results]
@@ -94,7 +94,12 @@ def run_query(q: str, search, reranker, top_k: int, client=None) -> tuple[str, l
         try:
             if client is None:
                 from openai import OpenAI
-                client = OpenAI()
+                if OPENAI_API_KEY:
+                    client = OpenAI(api_key=OPENAI_API_KEY)
+                elif GEMINI_API_KEY:
+                    client = OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_OPENAI_BASE_URL)
+                else:
+                    return (contexts[0] if contexts else "Không tìm thấy thông tin."), contexts, "extractive_fallback", None
             ctx = "\n\n".join(contexts)
             resp = client.chat.completions.create(
                 model=GENERATION_MODEL,
@@ -138,11 +143,14 @@ def main(argv=None):
 
     print(f"\nRunning {len(test_set)} queries...")
     answers = []
-    from config import OPENAI_API_KEY
+    from config import GEMINI_API_KEY, GEMINI_OPENAI_BASE_URL, OPENAI_API_KEY
     client = None
-    if OPENAI_API_KEY:
+    if OPENAI_API_KEY or GEMINI_API_KEY:
         from openai import OpenAI
-        client = OpenAI()
+        if OPENAI_API_KEY:
+            client = OpenAI(api_key=OPENAI_API_KEY)
+        else:
+            client = OpenAI(api_key=GEMINI_API_KEY, base_url=GEMINI_OPENAI_BASE_URL)
     t_start = time.time()
 
     for i, item in enumerate(test_set):
