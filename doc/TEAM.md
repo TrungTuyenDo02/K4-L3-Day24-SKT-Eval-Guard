@@ -18,12 +18,11 @@ ghi đúng phần mình đã làm; mỗi người cần có commit trong repo ch
 | STT | Họ và tên | MSSV | Vai trò / công việc thật | Bằng chứng |
 |---|---|---|---|---|
 | 1 | Đỗ Trịnh Huy Hoàng | 2A202602392 | Chuẩn bị môi trường, chép m1–m5 vào `src/`, kiểm tra imports, tải model, khởi động Qdrant và chạy setup sinh 50 answers | `artifacts/answers_50q.json`; log setup |
-| 2 | Đỗ Trung Tuyến | 2A202602427 | Trưởng nhóm. Chuẩn bị môi trường, tích hợp m1–m5; code Tasks 1–12 trong `src/phase_a_ragas.py`, `src/phase_b_judge.py`, `src/phase_c_guard.py`; cấu hình `guardrails/config.yml`; chạy batch Phase C; viết blueprint (kiến trúc guard, latency, CI/monitoring) | Commits trên `main`; `artifacts/guard_results.json`; `doc/reports/blueprint.md` |
+| 2 | Đỗ Trung Tuyến | 2A202602427 | Trưởng nhóm. Chuẩn bị môi trường, tích hợp m1–m5; code Tasks 1–12 trong `src/phase_a_ragas.py`, `src/phase_b_judge.py`, `src/phase_c_guard.py`; cấu hình `guardrails/config.yml`; sửa adapter m4 (segmenter faithfulness); chuẩn hóa LF cho JSON (`.gitattributes`); chạy Phase A và chạy lại Phase B/C; viết `failure_clusters.md`, blueprint, cập nhật `bias_report.md` | Commits trên `main`; `artifacts/ragas_50q.json`, `judge_results.json`, `guard_results.json`; ba báo cáo trong `doc/reports/` |
 
-Người tích hợp/nộp link: Đỗ Trung Tuyến — đã chạy batch Phase C
-(`scripts/run_experiments.py --phase c --live --latency-samples 20`), sẽ nộp link bản cuối. Sinh 50 answers, chạy Phase A/B,
-điền các mục "CHỜ KẾT QUẢ" trong `failure_clusters.md`/`bias_report.md` và chạy `scripts/check_lab.py`: giao cho thành viên có máy đủ RAM
-(máy trưởng nhóm không chạy được setup, xem mục dưới); người thực hiện tự ghi vào bảng và INDIVIDUAL của mình.
+Người tích hợp/nộp link: Đỗ Trung Tuyến. Đỗ Trịnh Huy Hoàng sinh 50 answers bằng Gemini (máy trưởng nhóm thiếu RAM, xem dưới).
+Vũ Đình Thư chạy Phase B lần đầu (commit `b67ba29`). Trưởng nhóm chạy Phase A, rồi chạy lại Phase B và C trên answers hiện tại
+sau khi chuẩn hóa LF (lý do ở mục INDIVIDUAL), cập nhật ba báo cáo và chạy `scripts/check_lab.py --with-tests`.
 
 ## Môi trường và chuẩn bị trước lớp
 
@@ -72,7 +71,15 @@ và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy s
     `check_input_rail`/`check_output_rail` đọc quyết định từ `result.log.activated_rails[].stop`; suite 28 inputs trong
     một event loop, Presidio chặn thì không gọi NeMo; đo latency 2 warm-up + 20 mẫu, luôn đo cả hai tầng.
     Viết lại prompt `self_check_input` trong `guardrails/config.yml`.
-  - Code Phase A/B mới được kiểm bằng unit tests (mock); **chưa chạy live** vì chưa có `answers_50q.json`.
+  - **Chạy và tích hợp kết quả cuối (sau khi có answers của Huy Hoàng):**
+    - Checker báo Phase B lệch generation model (lần chạy đầu dùng answers cũ). Phát hiện thêm: Git `core.autocrlf=true` khiến
+      JSON trên Windows là CRLF, nên mọi `source_sha256` (cả Phase C) sẽ lệch khi người chấm checkout LF. Thêm `.gitattributes`
+      (`*.json text eol=lf`), checkout lại, chạy lại Phase B và C (C giữ nguyên 20/20, 8/8, 4/4; P95 786.74 ms).
+    - Phase A dừng hai lần vì faithfulness NaN. Truy vết: ragas 0.1.22 chỉ giữ câu kết thúc bằng "." nên answer dạng gạch đầu
+      dòng không có statement → NaN tất định. Thêm `_LineSentenceSegmenter` trong `src/m4_eval.py` (áp dụng cho cả 50 câu,
+      không đổi NaN thành 0), rồi chạy Phase A thành công.
+    - Điền `failure_clusters.md` (bottom 10 phân loại retrieval/generation, matrix, phân tích bẫy adversarial đối chiếu dự đoán),
+      cập nhật `bias_report.md` và `blueprint.md` theo artifacts mới.
   - **Báo cáo nhóm:** `doc/reports/blueprint.md` — kiến trúc guard, failure action, bảng latency, CI gates và monitoring đề xuất
     (phần số liệu Phase A/B để trống chờ lần chạy của thành viên khác).
   - **Phần chuẩn bị báo cáo Phase A/B (không cần chạy model):** trong `failure_clusters.md`, phân tích 10 câu bẫy adversarial
@@ -80,11 +87,10 @@ và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy s
     không ghi trạng thái hết hiệu lực trong khi `mat_khau_v1.md` có, và dòng ngữ cảnh m5 chỉ ghi tên phiên bản; đề xuất sửa.
     Trong `bias_report.md`, đối chiếu 5 candidate B và 10 model_answer với reference, nêu ca dễ lệch (1, 12, 29) và tính độ
     nhạy κ theo số nhãn lệch.
-- Bằng chứng: commits trên `main`; `doc/reports/failure_clusters.md`, `doc/reports/bias_report.md` (phần đã viết);
-  `artifacts/guard_results.json`
-  (attacks 20/20, clean 8/8 allowed, false_positive_rate 0.0, output 4/4, input guard P95 795.57 ms);
-  `doc/reports/blueprint.md`.
-- Cách kiểm tra: `python -m pytest tests/ -q` → 86 passed (mock, không gọi API); chạy thật Presidio trên 28 inputs trước khi
+- Bằng chứng: commits trên `main`; `artifacts/ragas_50q.json` (adversarial 0.695 < multi_hop 0.699 < factual 0.810);
+  `artifacts/judge_results.json` (κ = 1.000, position inconsistency 1/5); `artifacts/guard_results.json` (attacks 20/20,
+  clean 8/8 allowed, false_positive_rate 0.0, output 4/4, input guard P95 786.74 ms); ba báo cáo trong `doc/reports/`.
+- Cách kiểm tra: `python scripts/check_lab.py --with-tests` (86 unit tests + đối chiếu hợp đồng 4 JSON); chạy thật Presidio trên 28 inputs trước khi
   chạy batch để chắc 8 câu sạch không bị gắn PII; `python scripts/run_experiments.py --phase c --live --latency-samples 20`
   (runner tự validate schema/counts/percentile trước khi ghi file).
 - Điều đã học: guard phải đo bằng cả attacks lẫn clean controls vì hàm luôn chặn cũng đạt 20/20; quyết định block phải lấy
@@ -92,6 +98,9 @@ và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy s
   PERSON/LOCATION trên câu tiếng Việt nên phải giới hạn entity; latency input guard bị chi phối bởi lời gọi LLM của NeMo
   (~98%) chứ không phải Presidio; percentile tổng phải tính từ tổng từng mẫu, không cộng P95 từng tầng; trong Phase A,
   matrix worst_metric chỉ mô tả còn nhóm yếu phải chọn theo mean; trong Phase B, winner A/B khác nhãn 0/1.
+  Từ phần chạy cuối: RAGAS faithfulness cao không có nghĩa là đúng (câu 41–43 nêu cả hai phiên bản vẫn đạt 1.0), và nhãn
+  "hallucinating" tự động sai với câu "Không tìm thấy."; bằng chứng hash phụ thuộc cả line ending, nên artifact sinh trên
+  Windows phải được kiểm tra với bản checkout LF.
 - Giới hạn/cách xử lý: lần chạy Phase C đầu chặn nhầm 1/8 câu sạch (id 107, quy định độ dài mật khẩu) và lọt 2 câu
   off-topic (id 11, 15); nguyên nhân là prompt dùng "credentials" mơ hồ và không nêu rõ phạm vi. Đã viết lại prompt theo quy tắc
   tổng quát, không sửa fixtures, rồi chạy lại toàn bộ batch C. Vì prompt được chỉnh sau khi xem kết quả trên chính bộ 28 câu,

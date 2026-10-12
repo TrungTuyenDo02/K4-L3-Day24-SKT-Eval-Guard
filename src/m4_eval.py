@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Module 4: RAGAS Evaluation — 4 metrics + failure analysis."""
 
-import os, sys, json, math
+import os, sys, json, math, re
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 if hasattr(sys.stderr, "reconfigure"):
@@ -68,11 +68,46 @@ def _is_valid_score(value) -> bool:
     return math.isfinite(f) and 0.0 <= f <= 1.0
 
 
+class _LineSentenceSegmenter:
+    """Segmenter cho faithfulness của ragas 0.1.x.
+
+    Faithfulness chỉ giữ các câu kết thúc bằng "." trước khi tách statement; answer dạng
+    markdown/gạch đầu dòng ("- Thử việc tiêu chuẩn: **60 ngày**") bị bỏ hết câu → không có
+    statement → NaN tất định. Tách theo dòng, bỏ ký hiệu markdown và thêm "." cho câu thiếu dấu
+    kết câu; bỏ dòng dẫn kết thúc bằng ":" ("Dựa trên context:") vì nội dung nằm ở các dòng sau.
+    Answer gốc vẫn được truyền nguyên văn vào prompt; chỉ danh sách câu thay đổi.
+    """
+
+    def __init__(self, base):
+        self.base = base
+
+    def segment(self, text: str) -> list[str]:
+        sentences = []
+        for line in text.splitlines():
+            line = re.sub(r"^\s*(?:[-*+]|\d+[.)])\s+", "", line).replace("**", "").strip()
+            for sentence in self.base.segment(line) if line else []:
+                sentence = sentence.strip()
+                if sentence and not sentence.endswith(":"):
+                    sentences.append(sentence if sentence.endswith(".") else sentence + ".")
+        return sentences
+
+
+def _faithfulness_metric():
+    from ragas.metrics import Faithfulness
+    from ragas.metrics.base import get_segmenter
+
+    metric = Faithfulness()
+    metric.sentence_segmenter = _LineSentenceSegmenter(get_segmenter(language="english", clean=False))
+    return metric
+
+
 def _run_ragas(questions, answers, contexts, ground_truths, llm, embeddings) -> list[dict]:
     """Một lượt RAGAS; trả list dict 4 metric theo đúng thứ tự đầu vào (có thể còn NaN)."""
     from ragas import evaluate
-    from ragas.metrics import faithfulness, answer_relevancy, context_precision, context_recall
+    from ragas.metrics import answer_relevancy, context_precision, context_recall
     from datasets import Dataset
+
+    faithfulness = _faithfulness_metric()
 
     dataset = Dataset.from_dict({
         "question": list(questions), "answer": list(answers),

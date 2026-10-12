@@ -1,0 +1,2 @@
+# Bằng chứng JSON được hash theo bytes (source_sha256); giữ LF trên mọi OS để checker khớp.
+*.json text eol=lf

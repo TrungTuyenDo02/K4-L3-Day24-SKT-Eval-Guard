@@ -2,15 +2,21 @@
 
 Nhóm: SKT
 
-Người phụ trách: Đỗ Trung Tuyến — 2A202602427 (code Tasks 5–8, thiết kế prompt, phân tích nguồn và nhãn người); kết quả chạy
-và diễn giải số liệu do thành viên chạy Phase B bổ sung.
+Người phụ trách: Đỗ Trung Tuyến — 2A202602427 (code Tasks 5–8, thiết kế prompt, phân tích nguồn và nhãn người);
+Vũ Đình Thư — 2A202602652 (lần chạy Phase B đầu và diễn giải số liệu lần đó).
 
-> **Trạng thái:** Phase B đã chạy live thành công. Kết quả dưới đây lấy trực tiếp từ
-> `artifacts/judge_results.json`; không có winner, nhãn hay κ nào được điền ước lượng.
+> **Trạng thái:** Phase B đã chạy live. Kết quả dưới đây lấy trực tiếp từ `artifacts/judge_results.json`;
+> không có winner, nhãn hay κ nào được điền ước lượng.
+>
+> **Lịch sử chạy:** lần chạy đầu (`2026-10-12T05:32:33Z`) dùng bản `answers_50q.json` cũ, metadata ghi `generation: []`,
+> nên checker báo "Phase B generation models must match saved answers" sau khi answers được sinh lại bằng Gemini.
+> Đồng thời `source_sha256` được tính trên file CRLF (Git `core.autocrlf=true` trên Windows), sẽ lệch khi checkout LF.
+> Nhóm thêm `.gitattributes` (`*.json text eol=lf`) và chạy lại Phase B trên đúng answers hiện tại; artifact hiện tại là
+> lần chạy lại này. Fixtures và prompt judge giữ nguyên.
 
-Nguồn: `artifacts/judge_results.json`; run timestamp: `2026-10-12T05:32:33.849528+00:00`
-(12:32:33 ICT, UTC+07:00). Metadata không khai báo model generation (mảng `generation` rỗng); model judge thực tế là
-`gpt-4o-mini` cho cả pairwise (`config.JUDGE_MODEL`) và binary helper.
+Nguồn: `artifacts/judge_results.json`; run timestamp: `2026-10-12T10:00:55.234278+00:00` (17:00:55 ICT, UTC+07:00).
+Models theo `metadata.models`: generation `gemini-3.5-flash-lite` (answers A); judge `gpt-4o-mini` cho cả pairwise
+(`config.JUDGE_MODEL`) và binary helper.
 
 ## Cách Task 5–8 được implement (đã xong, 8 unit tests pass)
 
@@ -51,18 +57,35 @@ A (answer pipeline), winner hai lượt, scores và reasoning từ `pairwise_res
 
 | ID | Pass 1 | Pass 2 (quy về A/B gốc) | Final | Nhất quán | Scores pass 1 A/B | Scores pass 2 A/B | Tóm tắt reasoning |
 |---|---|---|---|---|---|---|---|
-| 1 | A | A | A | Có | 1.0 / 0.8 | 1.0 / 0.7 | Cả hai lượt ưu tiên A vì đầy đủ hơn về nghỉ phép đặc biệt; B vẫn đúng số ngày kết hôn. |
-| 5 | B | A | tie | Không | 0.3 / 0.5 | 0.7 / 0.0 | Cả A và B đều không nêu CEO theo reference; judge đổi lựa chọn khi đảo thứ tự nên giữ `tie`. |
-| 12 | A | A | A | Có | 1.0 / 0.5 | 1.0 / 0.7 | A bổ sung điều kiện ≥6 tháng và pro-rata dưới 6 tháng; B đúng mức tối thiểu nhưng ngắn hơn. |
-| 21 | tie | B | tie | Không | 1.0 / 1.0 | 0.8 / 1.0 | Lượt đầu xem hai đáp án tương đương; lượt đảo vị trí nghiêng về B nên kết quả cuối là `tie`. |
-| 41 | B | A | tie | Không | 0.0 / 0.0 | 1.0 / 0.0 | Cả hai dùng 12 ngày theo v2023, trái reference v2024 là 15 ngày; judge đổi lựa chọn khi đảo vị trí. |
+A (pipeline, Gemini) của 5 câu: 1 "3 ngày làm việc khi kết hôn" (thiếu "có lương"); 5 "Không tìm thấy."; 12 "1 tháng lương"
+kèm điều kiện ≥6 tháng; 21 "Không tìm thấy."; 41 nêu cả "12 ngày" (phần đầu) "hoặc 15 ngày" (chính sách mới thay thế 1.0 năm 2023).
 
-Khi đọc kết quả, cặp 5 và 41 là phép thử rõ nhất: B sai theo reference, nên nếu A đúng mà judge vẫn chọn B hoặc tie thì cần
-đọc reasoning. Cặp 1, 12, 21 có B đúng, nên `tie` hoặc chọn bản ngắn gọn hơn đều có thể hợp lý.
+| ID | Pass 1 | Pass 2 (quy về A/B gốc) | Final | Nhất quán | Scores pass 1 A/B | Scores pass 2 A/B | Độ dài A/B (ký tự) | Đọc nội dung |
+|---|---|---|---|---|---|---|---|---|
+| 1 | B | B | **B** | Có | 0.8 / 1.0 | 0.5 / 1.0 | 48 / 57 | B có thêm "có lương" — đúng ý reference mà A thiếu; B thắng hợp lý. |
+| 5 | B | A | **tie** | Không | 0.0 / 0.5 | 0.5 / 0.0 | 15 / 33 | Cả hai sai theo reference (cần CEO). Lượt 1 cho câu trả lời sai (B) điểm cao hơn "Không tìm thấy", lượt 2 ngược lại; `tie` là kết quả đúng của swap. |
+| 12 | A | A | **A** | Có | 1.0 / 0.5 | 1.0 / 0.7 | 108 / 50 | A nêu điều kiện ≥6 tháng; B đúng mức nhưng không nêu điều kiện. A thắng chấp nhận được (B cũng đúng phần được hỏi). |
+| 21 | B | B | **B** | Có | 0.0 / 1.0 | 0.0 / 1.0 | 15 / 82 | A "Không tìm thấy." — lỗi retrieval của pipeline; B đúng cả 18 ngày và 20–35 triệu. B thắng đúng. |
+| 41 | A | A | **A** | Có | 1.0 / 0.0 | 1.0 / 0.5 | 233 / 37 | B "12 ngày" sai phiên bản. A nhắc 15 ngày và việc thay thế bản 2023 nhưng vẫn trình bày 12 ngày như một khả năng; điểm A = 1.0 là **chấm rộng tay** — A nên mất điểm vì không khẳng định bản hiện hành. |
 
-Position bias count/rate: **3/5 = 60%** (`position_bias_count=3`, `position_bias_rate=0.6`).
-Verbosity win rate: **2/2 = 100%**; decisive cases: **2**. Cả hai decisive cases đều là A thắng và A dài hơn
-(`a_wins_a_longer=2`, `b_wins_b_longer=0`).
+Lưu ý khi đọc `reasoning_pass2`: lượt 2 judge thấy câu trả lời ở vị trí đảo, nên chữ "Answer A" trong reasoning lượt 2 là
+answer **B gốc** (ví dụ cặp 1: "Answer A chính xác hơn vì nó bao gồm thông tin về việc nghỉ có lương"). Winner và scores
+trong bảng đã được `swap_and_average` quy về A/B gốc.
+
+Position bias count/rate: **1/5 = 20%** (`position_bias_count=1`, `position_bias_rate=0.2`), chỉ cặp 5.
+Verbosity win rate: **4/4 = 100%**; decisive cases: **4** (`a_wins_a_longer=2`, `b_wins_b_longer=2`).
+
+Đọc nội dung trước khi kết luận:
+
+- **Position:** cặp duy nhất bất nhất (5) là cặp mà cả hai answer đều sai — một bên từ chối, một bên sai người duyệt.
+  Judge không có cơ sở rõ để xếp hạng, nên đổi ý khi đổi thứ tự là dấu hiệu "hai answer tương đương kém" hơn là thiên vị vị
+  trí có hệ thống. Lần chạy đầu (answers cũ) có 3/5 bất nhất, cho thấy tỷ lệ này dao động mạnh theo nội dung answer.
+- **Verbosity:** cả 4 case decisive đều là bên dài hơn thắng, nhưng ở mỗi case bên dài hơn chứa đúng một ý mà reference yêu
+  cầu và bên ngắn thiếu ("có lương", điều kiện ≥6 tháng, số liệu thay cho "Không tìm thấy", 15 ngày theo v2024). Không có
+  case nào bên dài hơn thắng nhờ thêm chữ thừa, nên 100% ở đây phản ánh tương quan độ dài–đúng, **không chứng minh**
+  verbosity bias. Muốn tách hai yếu tố cần cặp đối chứng: cùng nội dung đúng, một bản thêm câu thừa.
+- **Điểm số:** cặp 41 cho thấy judge có thể thưởng câu trả lời "nêu cả hai phiên bản" bằng điểm tối đa; gate dựa trên
+  pairwise score nên kèm kiểm tra riêng cho câu version conflict.
 
 Cách diễn giải khi có số: một cặp không nhất quán chỉ cho biết judge đổi ý khi đổi thứ tự, không tự chứng minh nguyên nhân
 là position bias (có thể hai answer thật sự ngang nhau). Verbosity: B trong 5 cặp đều ngắn (1–2 câu) trong khi answer RAG
@@ -96,19 +119,23 @@ Nhãn judge, reasoning, agree từ `binary_judgments`:
 
 | ID | Nhãn judge | Nhãn human | Agree | Tóm tắt reasoning của judge |
 |---|---:|---:|---|---|
-| 1 | 1 | 1 | Có | Đúng số ngày nghỉ kết hôn và có lương. |
-| 5 | 0 | 0 | Có | Sai người phê duyệt: phải là Tổng Giám đốc. |
-| 12 | 1 | 1 | Có | Đúng điều kiện nhân viên chính thức từ 6 tháng và mức 1 tháng lương. |
-| 21 | 1 | 1 | Có | Đúng cả số ngày phép lẫn khoảng lương Senior. |
+| 1 | 1 | 1 | Có | Đúng số ngày và có lương; reasoning nói answer "nêu rõ không trừ vào phép năm" — **không đúng**, model_answer không có ý này. |
+| 5 | 0 | 0 | Có | Sai người phê duyệt: >50 triệu cần Tổng Giám đốc. |
+| 12 | 1 | 1 | Có | Đúng điều kiện ≥6 tháng và mức 1 tháng lương. |
+| 21 | 1 | 1 | Có | Đúng số ngày phép và khoảng lương Senior. |
 | 23 | 1 | 1 | Có | Đúng phải hoàn trả 25 triệu khi chưa đủ cam kết 1 năm. |
-| 29 | 0 | 0 | Có | Thiếu Kế toán trưởng và tính phí phạt chưa đúng. |
+| 29 | 0 | 0 | Có | Thiếu Kế toán trưởng; phí phạt tính sai (phải theo 15 ngày quá hạn, không phải 2% × 8 triệu cả tháng). |
 | 33 | 1 | 1 | Có | Đúng số ngày phép và tổng phụ cấp. |
-| 41 | 0 | 0 | Có | Dùng chính sách v2023; v2024 quy định 15 ngày phép. |
-| 46 | 1 | 1 | Có | Đúng không có phép năm khi thử việc và phải xin nghỉ không lương. |
-| 50 | 0 | 0 | Có | VPN cá nhân bị cấm theo reference. |
+| 41 | 0 | 0 | Có | Dùng chính sách v2023; v2024 quy định 15 ngày. |
+| 46 | 1 | 1 | Có | Đúng: thử việc không có phép năm, phải xin nghỉ không lương. |
+| 50 | 0 | 0 | Có | VPN cá nhân bị cấm theo chính sách. |
 
 Cohen’s κ: **1.000** (`calibration.cohen_kappa`). Judge trùng cả 10/10 nhãn human: `p_o=1.000`,
-`p_e=0.6×0.6 + 0.4×0.4 = 0.520`, nên `κ=(1.000-0.520)/(1-0.520)=1.000`.
+`p_e=0.6×0.6 + 0.4×0.4 = 0.520`, nên `κ=(1.000-0.520)/(1-0.520)=1.000`. Nhãn judge giống hệt ở cả hai lần chạy
+(05:32Z và 10:00Z), vì helper chấm đúng `model_answer` cố định, không phụ thuộc answers của pipeline.
+
+κ = 1 không có nghĩa reasoning của judge luôn đúng: ở câu 1, nhãn đúng nhưng lý do viện dẫn một ý không có trong answer.
+Nếu dùng reasoning để giải thích cho người dùng hoặc reviewer, cần kiểm tra lý do có bám answer không, không chỉ nhãn.
 
 Observed/chance agreement: p_o = số nhãn trùng / 10; p_e = P_judge(1)·0.6 + P_judge(0)·0.4 (human có 6 nhãn 1, 4 nhãn 0).
 Độ nhạy của κ với bộ nhãn này (tính bằng `cohen_kappa` trên nhãn giả định lật từ nhãn human, **không phải kết quả judge**):
@@ -129,8 +156,10 @@ Nghĩa là ngưỡng bonus κ > 0.6 chỉ chắc chắn đạt khi judge lệch 
 
 - Mẫu rất nhỏ: 5 cặp pairwise và 10 nhãn; mỗi nhãn lệch làm κ giảm khoảng 0.2, nên κ chỉ là chỉ báo thô, không đủ để tin judge
   tuyệt đối. Position/verbosity rate trên 5 cặp chỉ là dấu hiệu.
-- Judge và generation cùng là `gpt-4o-mini`, có thể ưu ái văn phong của chính model đó (self-preference) khi so A (pipeline)
-  với B; muốn kiểm tra cần thêm một judge khác họ model.
+- Generation của A là `gemini-3.5-flash-lite`, judge là `gpt-4o-mini` (khác họ model) nên self-preference với A ít khả năng;
+  nguồn sinh `model_answer` của B không được fixture nêu, nên không loại trừ judge ưu ái B nếu B do họ GPT sinh.
+- Hai trong năm answer A là "Không tìm thấy." (5, 21) nên phép so pairwise phần lớn đo chất lượng retrieval của pipeline,
+  không đo khả năng phân biệt tinh của judge.
 - Prompt nhị phân của helper khắt khe với "thiếu ý thiết yếu"; ranh giới ý thiết yếu/phụ (ca 1, 12) là chủ quan, người và
   judge có thể khác nhau hợp lý.
 - Cách dùng đề xuất: judge làm bộ lọc sơ bộ cho CI (luôn swap-and-average, `tie` khi bất đồng), các ca lệch hoặc `tie` gửi

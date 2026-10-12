@@ -2,19 +2,17 @@
 
 Nhóm: SKT
 
-Người phụ trách: Đỗ Trung Tuyến — 2A202602427 (code Tasks 1–4, phân tích bẫy từ đề/corpus); số liệu và phân tích
-bottom 10 do thành viên chạy Phase A bổ sung.
+Người phụ trách: Đỗ Trung Tuyến — 2A202602427 (code Tasks 1–4, sửa adapter m4, chạy Phase A, phân tích bottom 10 và bẫy);
+answers do Đỗ Trịnh Huy Hoàng — 2A202602392 sinh.
 
-> **Trạng thái tại commit này:** Phase A **chưa chạy**. Chưa có `artifacts/answers_50q.json` (máy trưởng nhóm thiếu RAM khi
-> sinh answers, xem `doc/TEAM.md`) nên chưa có `artifacts/ragas_50q.json`. Mọi mục ghi "CHỜ KẾT QUẢ" phải được điền từ JSON
-> do runner sinh; không điền số ước lượng.
+Nguồn: `artifacts/ragas_50q.json`; run timestamp: `2026-10-12T10:12:21.484496+00:00` (17:12:21 ICT, UTC+07:00).
+Generation mode/fallback: 50/50 câu `generation_mode=llm`, `generation_model=gemini-3.5-flash-lite`; 0 câu
+`extractive_fallback`. Answers sinh bởi `scripts/setup_answers.py --live` (hybrid BM25 + BGE-M3/Qdrant → bge-reranker-v2-m3
+top 3 → Gemini), system prompt "Trả lời CHỈ dựa trên context. Nếu không có → nói 'Không tìm thấy.'".
+Models theo `metadata.models`: generation `gemini-3.5-flash-lite`; evaluator `gpt-4o-mini` + `text-embedding-3-small`
+(do m4 báo, không dùng JUDGE_MODEL thay).
 
-Nguồn: `artifacts/ragas_50q.json`; run timestamp: CHỜ KẾT QUẢ (lấy `metadata.created_at`).
-Generation mode/fallback và điều kiện chạy: CHỜ KẾT QUẢ (đếm `generation_mode` trong answers; ghi số câu `extractive_fallback` nếu có).
-Models generation/evaluator: dự kiến generation `gpt-4o-mini`; evaluator do m4 báo `gpt-4o-mini` + `text-embedding-3-small`.
-Ghi lại đúng theo `metadata.models` sau khi chạy.
-
-## Cách Task 1–4 được implement (đã xong, 6 unit tests pass)
+## Cách Task 1–4 được implement (6 unit tests pass)
 
 - **Task 1 `group_by_distribution`:** chia theo trường `distribution`, báo lỗi nếu gặp distribution lạ; test xác nhận 20/20/10.
 - **Task 2 `run_ragas_50q`:** gọi `m4_eval.evaluate_ragas` một lần cho 50 câu, kiểm tra m4 trả đúng 50 dòng, chuyển từng metric
@@ -26,80 +24,156 @@ Ghi lại đúng theo `metadata.models` sau khi chạy.
   nhóm yếu = distribution có mean `avg_score` thấp nhất, nhóm rỗng bị bỏ khỏi phép chia; insight nêu xếp hạng mean,
   metric chủ đạo và số câu của nó trong nhóm yếu.
 
+**Sửa adapter m4 trước khi có artifact (ghi lại để người chấm biết vì sao số liệu chạy được):** hai lần chạy đầu dừng vì
+faithfulness NaN không hết sau 2 lượt chấm lại (lần 1: câu 18; lần 2: câu 18, 46; chạy debug: câu 19). Truy vết câu 19
+(`- Thời gian thử việc tiêu chuẩn là: **60 ngày**`): faithfulness của ragas 0.1.22 chỉ giữ câu **kết thúc bằng "."**
+(`_create_statements_prompt`), answer dạng gạch đầu dòng không có dấu chấm nên danh sách câu rỗng → LLM trả `[]` → không có
+statement → NaN; lỗi tất định nên retry không cứu được. `src/m4_eval.py` thêm `_LineSentenceSegmenter` cho faithfulness: tách
+theo dòng, bỏ `**`/gạch đầu dòng, thêm "." cho câu thiếu dấu kết câu, bỏ dòng dẫn kết thúc bằng ":". Answer gốc vẫn vào
+prompt nguyên văn; segmenter áp dụng **đồng loạt cho cả 50 câu**, không riêng câu lỗi. Không đổi NaN thành 0. Lần chạy dùng
+cho artifact vẫn còn 1 câu NaN ở lượt đầu và hết sau 1 lượt chấm lại.
+
 ## Điểm theo distribution
 
-CHỜ KẾT QUẢ — điền bảng 4 metric + avg_score × factual (20) / multi_hop (20) / adversarial (10) từ `per_distribution`.
+| Distribution | n | faithfulness | answer_relevancy | context_precision | context_recall | avg_score |
+|---|---:|---:|---:|---:|---:|---:|
+| factual | 20 | 0.933 | 0.479 | 0.929 | 0.900 | **0.810** |
+| multi_hop | 20 | 0.665 | 0.377 | 0.975 | 0.779 | **0.699** |
+| adversarial | 10 | 0.717 | 0.445 | 0.967 | 0.650 | **0.695** |
+
+Đọc nhanh: context_precision cao đều (0.93–0.98), nghĩa là reranker ít đưa chunk lạc đề; điểm thấp đến từ faithfulness
+(multi_hop/adversarial) và context_recall (adversarial). answer_relevancy thấp **ở mọi nhóm**, kể cả câu trả lời đúng
+(câu 18 đúng hoàn toàn: 0.376; câu 3 "1.000.000 VNĐ/tháng.": 0.410). Metric này sinh câu hỏi ngược từ answer rồi so embedding
+với câu hỏi gốc, nên answer tiếng Việt ngắn (chỉ một con số) bị điểm thấp có hệ thống; vì vậy nó không phải tín hiệu lỗi chính.
 
 ## Bottom 10 và nguyên nhân
 
-CHỜ KẾT QUẢ — điền đúng 10 rows từ `bottom_10` (rank, id, question, distribution, avg_score, worst_metric, diagnosis,
-suggested_fix). Với mỗi câu, đọc `answer`, `contexts` và `ground_truth` trong `per_question` rồi phân loại:
+Điểm theo thứ tự faithfulness / answer_relevancy / context_precision / context_recall. Diagnosis/fix là cột tự động từ
+`DIAGNOSTIC_TREE`; cột "Đọc answer/contexts" là phân loại sau khi đọc `answer`, `contexts`, `ground_truth` trong `per_question`.
 
-| Dấu hiệu khi đọc | Loại lỗi | Hướng sửa cụ thể |
-|---|---|---|
-| contexts không chứa ý trong reference (context_recall thấp) | Retrieval thiếu | tăng top_k trước rerank, thêm BM25 cho số liệu, chunk nhỏ hơn cho bảng |
-| contexts có nhiều chunk không liên quan (context_precision thấp) | Retrieval nhiễu | filter metadata theo tài liệu/phiên bản, giữ reranker |
-| contexts đúng nhưng answer thêm/sai ý (faithfulness thấp) | Generation hallucinate | prompt bắt trích dẫn, `temperature=0`, cấm suy diễn ngoài context |
-| answer lạc đề hoặc chỉ nói "Không tìm thấy" (answer_relevancy thấp) | Generation/prompt | prompt yêu cầu trả lời thẳng câu hỏi, nêu phiên bản áp dụng |
-| contexts có cả v2023 và v2024, answer chọn bản cũ | Version conflict | metadata `effective_date`/`superseded`, prompt ưu tiên bản mới nhất |
+| Rank | ID | Distribution | avg | F / AR / CP / CR | worst_metric → diagnosis (tự động) | Đọc answer/contexts | Loại lỗi thật |
+|---|---|---|---:|---|---|---|---|
+| 1 | 5 | factual | 0.146 | 0.00 / 0.00 / 0.58 / 0.00 | faithfulness → LLM hallucinating | Answer "Không tìm thấy.". Chunk bảng thẩm quyền chỉ có 2 dòng đầu (<5 triệu, 5–50 triệu); dòng ">50 triệu → CEO" nằm ở chunk khác không được lấy. Từ chối là **đúng** với contexts. | Retrieval (recall) — bảng bị cắt giữa chừng |
+| 2 | 39 | multi_hop | 0.250 | 0.00 / 0.00 / 1.00 / 0.00 | faithfulness → LLM hallucinating | Cả 3 contexts là tiêu đề/ghi chú phiên bản ("ĐÃ THAY THẾ bởi v2.0", "Văn bản này thay thế…"), không có con số 8/12 ký tự, 90/120 ngày, MFA. | Retrieval (recall) — chunk metadata chiếm hết top 3 |
+| 3 | 50 | adversarial | 0.333 | 0.00 / 0.00 / 1.00 / 0.33 | faithfulness → LLM hallucinating | Context 1 có nguyên văn "Không sử dụng VPN cá nhân (NordVPN, ExpressVPN)" nhưng answer "Không tìm thấy.". | Generation — từ chối dù đủ căn cứ |
+| 4 | 21 | multi_hop | 0.333 | 0.00 / 0.00 / 0.83 / 0.50 | faithfulness → LLM hallucinating | Contexts có quy tắc thâm niên (+1/3 năm, ví dụ 9 năm) và 12 ngày v2023; thiếu 15 ngày v2024 và khung lương Senior. Answer "Không tìm thấy." thay vì trả lời phần có căn cứ. | Cả hai — recall thiếu + generation không trả lời một phần |
+| 5 | 33 | multi_hop | 0.375 | 0.00 / 0.00 / 1.00 / 0.50 | faithfulness → LLM hallucinating | Contexts có 15 ngày v2024 + quy tắc thâm niên (đủ tính 19 ngày); thiếu phụ cấp ăn trưa/điện thoại. Answer "Không tìm thấy.". | Cả hai — như câu 21 |
+| 6 | 46 | adversarial | 0.417 | 0.00 / 0.00 / 1.00 / 0.67 | faithfulness → LLM hallucinating | Context 1: "Nhân viên thử việc **KHÔNG được nghỉ phép năm** … phải xin nghỉ không lương". Answer "Không tìm thấy.". | Generation — bỏ lỡ câu phủ định có sẵn |
+| 7 | 24 | multi_hop | 0.500 | 0.00 / 0.00 / 1.00 / 1.00 | faithfulness → LLM hallucinating | Contexts đủ cả 3 dữ kiện (hạn 15 ngày, phạt 2%/tháng, số tiền); câu hỏi cần tính 2% × 15tr × 5/30 ≈ 50.000 VNĐ. Answer "Không tìm thấy.". | Generation — không suy luận/tính toán |
+| 8 | 44 | adversarial | 0.500 | 0.50 / 0.00 / 0.83 / 0.67 | answer_relevancy → Answer doesn't match question | Contexts có "mỗi 120 ngày" (v2.0), "mỗi 90 ngày" (v1.0) và ghi chú "đã được thay thế bởi v2.0". Answer: "120 ngày (hoặc **90 ngày theo chính sách mới**)" — gán nhầm bản cũ là bản mới. | Generation — version conflict |
+| 9 | 30 | multi_hop | 0.625 | 1.00 / 0.00 / 1.00 / 0.50 | answer_relevancy → Answer doesn't match question | Có chunk thử việc (BHXH, chưa có PVI) nhưng không có chunk PVI 200 triệu/năm cho nhân viên chính thức; 1/3 context là tiêu đề trống "## Quyền lợi trong thử việc". Answer nói đúng là context thiếu. | Retrieval (recall) — thiếu tài liệu thứ hai |
+| 10 | 34 | multi_hop | 0.659 | 0.57 / 0.40 / 1.00 / 0.67 | answer_relevancy → Answer doesn't match question | Answer đúng cả hai mức phê duyệt so với reference, chỉ thiếu ý "hạn hoàn ứng 15 ngày"; 1/3 context là tiêu đề trống "## Quy trình phê duyệt". Faithfulness 0.57 là evaluator chấm chặt câu "cần trưởng phòng phê duyệt và thêm Kế toán trưởng". | Nhẹ — evaluator chặt + thiếu một ý phụ |
 
-Lưu ý khi đọc điểm: RAGAS chấm faithfulness theo contexts, không theo reference. Một answer trả "12 ngày" bám đúng chunk v2023
-vẫn có thể có faithfulness cao dù sai so với reference; lỗi đó lộ ra ở context_precision/recall hoặc phải đọc tay.
+Tổng hợp 10 câu:
+
+- **7/10 câu là "Không tìm thấy."** (5, 21, 24, 33, 39, 46, 50) — đó cũng là **toàn bộ** 7 câu "Không tìm thấy." trong 50 câu.
+  RAGAS cho các câu này faithfulness = 0 và answer_relevancy = 0, nên nhãn tự động "LLM hallucinating" **sai bản chất**:
+  không có câu nào bịa thông tin. Trong 7 câu, 2 câu là lỗi retrieval thật (5, 39: context_recall = 0, từ chối là hợp lý),
+  3 câu là lỗi generation thuần (24, 46, 50: context đã chứa đáp án hoặc đủ dữ kiện để tính), 2 câu lẫn cả hai (21, 33).
+- **Retrieval:** 5 và 39 cho thấy hai lỗi chunking cụ thể: bảng Markdown bị cắt khiến dòng cuối tách khỏi header, và các
+  chunk chỉ có tiêu đề/metadata phiên bản chiếm suất trong top 3 (39; tương tự tiêu đề trống ở 30, 34). Chunk tiêu đề có
+  embedding gần câu hỏi nhưng không mang dữ kiện.
+- **Generation:** prompt "Nếu không có → nói 'Không tìm thấy.'" là tất-cả-hoặc-không. Gemini flash-lite từ chối khi context thiếu
+  một phần (21, 33) hoặc khi phải tính toán (24), và cả khi đáp án nằm trong một câu phủ định (46, 50).
+- Bỏ 7 câu "Không tìm thấy." thì avg_score còn factual 0.845 (n=19), multi_hop 0.783 (n=16), adversarial 0.774 (n=8): phần lớn
+  khoảng cách giữa các nhóm đến từ việc từ chối, chủ yếu ở multi_hop (4 câu).
 
 ## Matrix và nhóm yếu nhất
 
-CHỜ KẾT QUẢ — điền matrix 4 metric × 3 distribution từ `failure_clusters.matrix`, nhóm yếu theo
-`distribution_avg_scores`, metric chủ đạo và số câu của nó. Không dùng tổng cột 20/20/10 để chọn nhóm yếu.
+Matrix worst_metric × distribution (`failure_clusters.matrix`, đếm mọi câu; tổng cột 20/20/10 chỉ là kích thước nhóm):
 
-## Bẫy adversarial và giới hạn
+| worst_metric | factual | multi_hop | adversarial | Tổng |
+|---|---:|---:|---:|---:|
+| faithfulness | 2 | 6 | 2 | 10 |
+| answer_relevancy | 17 | 13 | 5 | 35 |
+| context_precision | 1 | 0 | 0 | 1 |
+| context_recall | 0 | 1 | 3 | 4 |
+| **Tổng** | 20 | 20 | 10 | 50 |
 
-Phân tích dưới đây làm từ `fixtures/test_set_50q.json` và corpus `data/`, **trước khi có điểm**; dùng để đối chiếu khi đọc
-answers. Điểm adversarial thấp hơn chỉ cho thấy nhóm khó hơn, không chứng minh pipeline đã nhận ra (hoặc mắc) bẫy.
+Nhóm yếu nhất theo mean avg_score (`distribution_avg_scores`): **adversarial 0.695** < multi_hop 0.699 < factual 0.810.
+Metric chủ đạo của nhóm này theo artifact là answer_relevancy (5/10 câu). Lưu ý khi đọc:
 
-| ID | Loại bẫy | Tài liệu liên quan | Đáp án đúng | Kiểu sai dễ gặp |
-|---|---|---|---|---|
-| 41 | Version conflict | `nghi_phep_nam_v2023.md` vs `v2024.md` | 15 ngày (+1/3 năm) theo v2024 | trả 12 ngày theo v2023 |
-| 42 | Version conflict | như trên | từ 3 năm, mỗi 3 năm +1 ngày | trả 5 năm theo v2023 |
-| 43 | Version conflict | `mat_khau_v1.md` vs `mat_khau_v2.md` | tối thiểu 12 ký tự | trả 8 ký tự theo v1.0 |
-| 44 | Version conflict | như trên | đổi mỗi 120 ngày | trả 90 ngày theo v1.0 |
-| 45 | Version conflict | như trên | MFA bắt buộc (email, VPN, hệ thống nội bộ) | nói không bắt buộc vì v1.0 không nhắc MFA |
-| 46 | Phủ định | `thu_viec.md` | KHÔNG được phép năm, xin nghỉ không lương | áp dụng 15 ngày phép cho thử việc |
-| 47 | Phủ định | `bao_mat_su_co.md` | KHÔNG tự xử lý, báo trong 1 giờ | hướng dẫn tự quét/xóa malware |
-| 48 | Phủ định ngầm | `thu_viec.md` (+ `bao_hiem_suc_khoe.md`) | KHÔNG được PVI, chỉ BHXH | nói "có" vì tài liệu PVI ghi "toàn diện" |
-| 49 | Version conflict có chủ đích | v2023 + v2024 | v2023: 12 ngày (+1/5 năm, hết hiệu lực); hiện hành v2024: 15 ngày (+1/3 năm) | chỉ trả một bản hoặc không nói bản nào hiệu lực |
-| 50 | Mâu thuẫn chính sách | `vpn_truy_cap.md` | KHÔNG dùng VPN cá nhân, bắt buộc WireGuard | đồng ý vì "tăng bảo mật" nghe hợp lý |
+- Adversarial chỉ thấp hơn multi_hop **0.005**. Với 10 câu, một câu đổi 0.05 điểm là đủ đảo thứ tự, nên "adversarial yếu
+  nhất" chỉ đúng với lần chạy này. Khoảng cách chắc chắn là cả hai nhóm khó đều thấp hơn factual khoảng 0.11.
+- answer_relevancy là worst_metric của 35/50 câu vì thang của nó thấp hơn ba metric còn lại (xem mục trên), không phải vì
+  35 câu lạc đề. Đọc theo nội dung, lỗi chủ đạo của adversarial là **context_recall** (3/10 câu, mean 0.65 — thấp nhất trong
+  mọi cặp metric × nhóm) và **trả lời sai/không chọn phiên bản**; của multi_hop là **faithfulness** (6/20 câu, mean 0.665, do
+  4 câu "Không tìm thấy.").
 
-Quan sát từ corpus giải thích vì sao các bẫy này khó với pipeline hiện tại:
+## Bẫy adversarial (bonus: adversarial mean < factual mean)
 
-- **Hai cặp phiên bản đánh dấu không giống nhau.** `mat_khau_v1.md` ghi rõ "Trạng thái: ĐÃ THAY THẾ bởi v2.0", nên nếu chunk tiêu đề
-  được lấy cùng nội dung thì LLM có tín hiệu loại bản cũ. Ngược lại `nghi_phep_nam_v2023.md` **không ghi đã hết hiệu lực**; chỉ
-  `v2024.md` nói "thay thế hoàn toàn phiên bản 1.0". Nếu retrieval chỉ lấy chunk v2023 (hoặc chunk v2024 không chứa câu "thay
-  thế"), không có gì trong context cho biết 12 ngày là sai. Dự đoán cần kiểm chứng: câu 41/42 dễ sai hơn 43/44.
-- **Chunk có nhãn phiên bản nhưng không có trạng thái hiệu lực.** m1 cắt child ~256 ký tự nên dòng
-  `Phiên bản/Ngày hiệu lực` ở đầu tài liệu không nằm trong phần lớn child chunk. m5 bù lại bằng một dòng ngữ cảnh do LLM sinh
-  (kiểm tra trong `.cache/enrichment_cache.json`: "Đoạn văn thuộc tài liệu chính sách nghỉ phép năm, phiên bản 2023, …"),
-  nhưng dòng này chỉ ghi tên phiên bản, không ghi "đã hết hiệu lực". Prompt generation hiện tại ("Trả lời CHỈ dựa trên
-  context") cũng không yêu cầu so sánh phiên bản, nên khi context có cả "phiên bản 2023" và "phiên bản 2024", việc chọn bản
-  nào phụ thuộc vào LLM.
-- **Phủ định nằm ở tài liệu khác.** Câu 48 hỏi về PVI nhưng điều kiện loại trừ nằm trong `thu_viec.md`; `bao_hiem_suc_khoe.md`
-  chỉ nói "cho tất cả nhân viên chính thức". Nếu reranker chỉ giữ top 3 từ tài liệu PVI, answer dễ thành "có" và vẫn
-  faithful với contexts → faithfulness cao nhưng sai.
-- **Câu 50** là câu hỏi dẫn dắt; tài liệu có dòng cấm rõ, nên lỗi (nếu có) là generation chiều theo giả định của câu hỏi.
+Adversarial mean **0.695 < factual 0.810** (chênh 0.115). Phân tích bên dưới chỉ ra điểm thấp đến từ đâu, và vì sao **RAGAS
+đánh giá thấp mức độ sai thật** của nhóm này.
 
-Đề xuất sửa cụ thể (cần chạy lại `setup_answers.py` + Phase A để đo):
+Bảng dự đoán (viết từ `fixtures/test_set_50q.json` và corpus `data/` trước khi có điểm), đối chiếu với answer thực tế:
 
-1. m1 đọc dòng header `Phiên bản/Ngày hiệu lực/Trạng thái` của tài liệu, đưa `version`, `effective_date`, `superseded_by`
-   vào metadata của mọi child chunk và prepend một dòng tất định "[Tài liệu: …, phiên bản …, hiệu lực từ …, trạng thái …]"
-   (thay vì dựa vào dòng ngữ cảnh do LLM của m5 sinh). Với cặp nghỉ phép, `superseded_by` suy từ câu "thay thế hoàn toàn
-   phiên bản 1.0" trong v2024.
-2. Filter mặc định bỏ tài liệu đã bị thay thế, trừ khi câu hỏi nêu rõ phiên bản cũ (như câu 49).
-3. Prompt generation: "nếu context có nhiều phiên bản, dùng phiên bản có ngày hiệu lực mới nhất và nói rõ phiên bản";
-   "giữ nguyên các câu phủ định/điều kiện (KHÔNG, chỉ khi, trừ)".
-4. Với câu có chủ thể đặc biệt (thử việc, Manager), mở rộng truy vấn để lấy thêm tài liệu về chủ thể đó (`thu_viec.md`).
+| ID | Loại bẫy | Đáp án đúng | Answer pipeline (tóm tắt) | Mắc bẫy? | F / AR / CP / CR | avg |
+|---|---|---|---|---|---|---:|
+| 41 | Version conflict | 15 ngày theo v2024 | "12 ngày … hoặc 15 ngày (chính sách mới thay thế bản 2023)" | **Một phần** — không khẳng định bản hiện hành | 1.00 / 0.84 / 1.00 / 0.67 | 0.877 |
+| 42 | Version conflict | từ 3 năm, +1/3 năm | "từ 5 năm trở lên (hoặc từ 3 năm trở lên)" | **Một phần** — nêu bản cũ trước | 1.00 / 0.76 / 1.00 / 0.67 | 0.858 |
+| 43 | Version conflict | tối thiểu 12 ký tự | "Yêu cầu thứ nhất: 12 ký tự; yêu cầu thứ hai: 8 ký tự" | **Một phần** — không nói bản nào hiệu lực | 1.00 / 0.53 / 1.00 / 0.67 | 0.798 |
+| 44 | Version conflict | mỗi 120 ngày | "120 ngày (hoặc 90 ngày theo chính sách mới)" | **Có** — gán nhầm 90 ngày là bản mới | 0.50 / 0.00 / 0.83 / 0.67 | 0.500 |
+| 45 | Version conflict | MFA bắt buộc | "Có, bắt buộc MFA cho email, VPN, hệ thống nội bộ" | Không | 1.00 / 0.59 / 1.00 / 0.50 | 0.772 |
+| 46 | Phủ định | KHÔNG được phép năm, xin nghỉ không lương | "Không tìm thấy." (context có câu phủ định) | **Có** — bỏ lỡ phủ định | 0.00 / 0.00 / 1.00 / 0.67 | 0.417 |
+| 47 | Phủ định | KHÔNG tự xử lý, báo CNTT | "Không. Tuyệt đối không tự ý xử lý malware…" | Không | 1.00 / 0.71 / 0.83 / 1.00 | 0.885 |
+| 48 | Phủ định ngầm | KHÔNG có PVI, chỉ BHXH | "Không. Nhân viên thử việc chưa được hưởng gói PVI." | Không | 1.00 / 0.61 / 1.00 / 0.67 | 0.818 |
+| 49 | Version (hỏi cả hai) | v2023 12 ngày (hết hiệu lực); v2024 15 ngày | Nêu đúng cả hai, ghi rõ bản 2024 thay thế hoàn toàn | Không | 0.67 / 0.42 / 1.00 / 0.67 | 0.688 |
+| 50 | Mâu thuẫn chính sách | KHÔNG dùng VPN cá nhân | "Không tìm thấy." (context có dòng cấm) | **Có** — không dám bác bỏ giả định | 0.00 / 0.00 / 1.00 / 0.33 | 0.333 |
 
-Cách biết sửa có hiệu quả: so sánh adversarial mean và faithfulness/context_precision của 10 câu 41–50 trước/sau, đọc lại
-answers của 41, 42, 46, 48; đồng thời kiểm tra factual/multi_hop không giảm.
+Kết luận về bẫy:
 
-Giới hạn: chỉ 10 câu adversarial nên một câu thay đổi làm mean nhóm đổi 0.1 × chênh lệch điểm câu đó; RAGAS dùng
-gpt-4o-mini làm evaluator nên chính evaluator có thể chấm sai câu phủ định; hai PDF scan (`BCTC.pdf`, Nghị định 13) không
-có text layer nên bị m1 bỏ qua, không ảnh hưởng 10 câu trên nhưng giới hạn corpus.
+- **Version conflict là bẫy hiệu quả nhất:** 4/5 câu (41–44) mắc toàn phần hoặc một phần. Retrieval lấy **cả hai phiên bản**
+  vào top 3 (context_precision 1.0, vì cả hai chunk đều "liên quan"), và LLM liệt kê cả hai, có lúc gán sai nhãn (44). Chỉ câu
+  45 thoát, vì v1.0 không nhắc MFA nên không có mâu thuẫn trực tiếp.
+- **RAGAS không bắt được version conflict:** 41, 42, 43 có faithfulness 1.0 và avg 0.80–0.88 (cao hơn factual mean), dù
+  người dùng không biết nên theo 12 hay 15 ngày. Faithfulness chỉ kiểm tra answer có bám context, mà context chứa cả bản
+  cũ. Vì vậy mean adversarial 0.695 vẫn **đánh giá cao hơn thực tế**; nếu chấm theo reference, chỉ 45, 47, 48, 49 đúng hoàn toàn (4/10).
+- **Phủ định:** retrieval làm tốt (46, 48 đều lấy được `thu_viec.md`, 47 có recall 1.0). Pipeline trả đúng khi câu hỏi là
+  yes/no rõ ràng (47, 48), nhưng **từ chối** ở 46 và 50, nơi đáp án là một câu "KHÔNG …" bác bỏ giả định của câu hỏi.
+  Đây là lỗi generation chứ không phải hallucination: model không bịa "được nghỉ 15 ngày", nhưng cũng không trả lời.
+- **Dự đoán trước khi chạy không đúng hoàn toàn:** nhóm dự đoán 41/42 (cặp nghỉ phép, v2023 không ghi "hết hiệu lực") dễ sai
+  hơn 43/44 (cặp mật khẩu, v1.0 ghi "ĐÃ THAY THẾ"). Thực tế 44 sai nặng nhất. Chunk "Chu kỳ thay đổi … 90 ngày" của v1.0 không
+  mang dòng trạng thái, còn chunk "Lưu ý: đã được thay thế" có trong context nhưng LLM không nối nó với chunk 90 ngày. Nhãn
+  trạng thái ở **đầu tài liệu** không đủ; nó phải đi theo **từng chunk**.
+
+Quan sát từ corpus (viết trước khi chạy, vẫn đúng sau khi đối chiếu):
+
+- `nghi_phep_nam_v2023.md` **không ghi đã hết hiệu lực**, chỉ `v2024.md` nói "thay thế hoàn toàn phiên bản 1.0".
+- m1 cắt child ~256 ký tự nên dòng `Phiên bản/Ngày hiệu lực` ở đầu tài liệu không nằm trong phần lớn child chunk. Dòng ngữ
+  cảnh do m5 sinh chỉ ghi tên phiên bản, không ghi trạng thái hiệu lực.
+- Prompt generation không yêu cầu so sánh phiên bản, và cho phép từ chối toàn bộ khi thiếu một phần.
+
+## Đề xuất sửa cụ thể
+
+Xếp theo số câu bottom 10 mỗi đề xuất nhắm tới:
+
+1. **Prompt generation (24, 46, 50; một phần 21, 33):** thay "Nếu không có → nói 'Không tìm thấy.'" bằng: "Trả lời phần có căn
+   cứ trong context và nói rõ phần nào không có. Được tính toán từ số liệu trong context. Nếu context có quy định phủ định
+   (KHÔNG, cấm, chỉ khi) liên quan, trả lời bằng quy định đó. Chỉ nói 'Không tìm thấy' khi context không có dữ kiện nào liên
+   quan." Kiểm tra: số câu "Không tìm thấy." giảm từ 7/50; 5 và 39 (thiếu context thật) vẫn phải từ chối hoặc trả lời một phần,
+   không bịa.
+2. **Phiên bản trong từng chunk (41–44):** m1 đọc header `Phiên bản/Ngày hiệu lực/Trạng thái`, ghi `version`, `effective_date`,
+   `superseded_by` vào metadata **mọi** child chunk và prepend một dòng tất định "[Chính sách mật khẩu v1.0 — ĐÃ THAY THẾ bởi
+   v2.0 từ 01/07/2024]". Với cặp nghỉ phép, `superseded_by` suy từ câu "thay thế hoàn toàn phiên bản 1.0" trong v2024. Mặc
+   định filter bỏ chunk đã bị thay thế, trừ khi câu hỏi nêu rõ phiên bản cũ hoặc đòi so sánh (39, 49). Prompt: "Nếu context có
+   nhiều phiên bản, trả lời theo bản đang hiệu lực và ghi tên phiên bản."
+3. **Chunking bảng và tiêu đề (5, 39, 30, 34):** không cắt bảng Markdown giữa các dòng (giữ cả bảng hoặc lặp header cho mỗi phần);
+   gộp chunk chỉ có tiêu đề/metadata (< ~60 ký tự hoặc chỉ một dòng `#`) vào chunk nội dung kế tiếp để chúng không chiếm suất
+   top 3.
+4. **Câu multi-hop/so sánh (21, 30, 33, 39):** tăng top_k sau rerank từ 3 lên 5 cho câu có nhiều mệnh đề hoặc chữ "so sánh",
+   hoặc tách truy vấn theo từng ý (phép năm / lương / phụ cấp) rồi gộp contexts; đo bằng context_recall của multi_hop (hiện 0.779).
+
+Cách biết sửa có hiệu quả: chạy lại `setup_answers.py --live` rồi Phase A. So sánh trước/sau: số câu "Không tìm thấy.";
+faithfulness multi_hop (0.665); context_recall adversarial (0.65); **và đọc tay** 41–44, vì RAGAS không phạt được câu trả lời nêu
+cả hai phiên bản. Đồng thời kiểm tra factual (0.810) không giảm.
+
+## Giới hạn
+
+- Mỗi nhóm nhỏ (10 câu adversarial): một câu đổi điểm làm mean nhóm đổi 0.1 × chênh lệch. Adversarial và multi_hop chỉ cách
+  nhau 0.005.
+- Evaluator `gpt-4o-mini` không ổn định tuyệt đối: lần chạy debug cho câu 46 context_precision 0.83 và 1.0 ở hai lượt liên tiếp.
+  Mức chênh dưới ~0.05 giữa hai lần chạy không nên coi là cải thiện.
+- answer_relevancy bị lệch thấp với answer tiếng Việt ngắn; không nên dùng nó làm gate đơn lẻ.
+- Segmenter của adapter m4 thay đổi cách faithfulness tách câu so với ragas mặc định, nên điểm faithfulness không so trực tiếp
+  được với lần chạy dùng segmenter gốc (lần chạy đó cũng không hoàn thành được vì NaN).
+- Hai PDF scan (`BCTC.pdf`, Nghị định 13) không có text layer nên m1 bỏ qua; không ảnh hưởng 10 câu adversarial nhưng giới hạn corpus.
