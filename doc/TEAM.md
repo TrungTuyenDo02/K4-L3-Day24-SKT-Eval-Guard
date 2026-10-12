@@ -17,7 +17,8 @@ ghi đúng phần mình đã làm; mỗi người cần có commit trong repo ch
 
 | STT | Họ và tên | MSSV | Vai trò / công việc thật | Bằng chứng |
 |---|---|---|---|---|
-| 1 | Đỗ Trung Tuyến | 2A202602427 | Trưởng nhóm. Chuẩn bị môi trường, tích hợp m1–m5; code Tasks 1–12 trong `src/phase_a_ragas.py`, `src/phase_b_judge.py`, `src/phase_c_guard.py`; cấu hình `guardrails/config.yml`; chạy batch Phase C; viết blueprint (kiến trúc guard, latency, CI/monitoring); phần phân tích không cần số liệu của `failure_clusters.md` (bẫy adversarial) và `bias_report.md` (nguồn cặp A/B, 10 model_answer, độ nhạy κ) | Commits trên `main`; `artifacts/guard_results.json`; `doc/reports/*.md` |
+| 1 | Đỗ Trịnh Huy Hoàng | 2A202602392 | Chuẩn bị môi trường, chép m1–m5 vào `src/`, kiểm tra imports, tải model, khởi động Qdrant và chạy setup sinh 50 answers | `artifacts/answers_50q.json`; log setup |
+| 2 | Đỗ Trung Tuyến | 2A202602427 | Trưởng nhóm. Chuẩn bị môi trường, tích hợp m1–m5; code Tasks 1–12 trong `src/phase_a_ragas.py`, `src/phase_b_judge.py`, `src/phase_c_guard.py`; cấu hình `guardrails/config.yml`; chạy batch Phase C; viết blueprint (kiến trúc guard, latency, CI/monitoring) | Commits trên `main`; `artifacts/guard_results.json`; `doc/reports/blueprint.md` |
 
 Người tích hợp/nộp link: Đỗ Trung Tuyến — đã chạy batch Phase C
 (`scripts/run_experiments.py --phase c --live --latency-samples 20`), sẽ nộp link bản cuối. Sinh 50 answers, chạy Phase A/B,
@@ -43,6 +44,15 @@ Thử cả hai model bfloat16 thì CPU không có lệnh BF16 nên rerank quá c
 và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy setup với mặc định float32 trên máy đủ RAM.
 
 ## INDIVIDUAL
+
+### DoTrinhHuyHoang-2A202602392
+
+- Phần được giao và phần thực tế đã làm:
+  - Chuẩn bị môi trường, chép m1–m5 vào `src/` và kiểm tra imports.
+  - Tải model embedding/reranker, khởi động Qdrant và index 130 chunks.
+  - Chạy setup bằng Gemini 3.5 Flash Lite, tạo đủ 50 answers.
+- Bằng chứng: `artifacts/answers_50q.json` có 50/50 câu, `generation_mode=llm`,
+  `generation_model=gemini-3.5-flash-lite`.
 
 ### DoTrungTuyen-2A202602427
 
