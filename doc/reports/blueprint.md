@@ -5,9 +5,9 @@ Nhóm: SKT
 Người phụ trách: Đỗ Trung Tuyến — 2A202602427
 
 Đây là **đề xuất CI/CD**, không phải workflow đã được triển khai/chạy.
-Nguồn kết quả: artifacts/ragas_50q.json, judge_results.json, guard_results.json.
+Nguồn kết quả: `artifacts/judge_results.json`, `artifacts/guard_results.json`; `artifacts/ragas_50q.json` chưa có vì Phase A chưa chạy.
 Run timestamp: guard_results.json `2026-10-12T04:09:07Z`; guard models: `["gpt-4o-mini"]` (NeMo `main` model, self check input/output).
-Models generation/evaluator/judge từ A/B: Phase A/B **chưa chạy** tại commit này (chưa có `artifacts/answers_50q.json`); cấu hình dự kiến: generation `gpt-4o-mini` (`config.GENERATION_MODEL`), evaluator m4 `gpt-4o-mini` + `text-embedding-3-small`, judge `gpt-4o-mini` (`config.JUDGE_MODEL`). Cập nhật theo metadata thật sau khi chạy.
+Phase B chạy lúc `2026-10-12T05:32:33.849528+00:00`: metadata ghi judge `gpt-4o-mini` và không khai báo model generation (mảng rỗng). Phase A chưa chạy nên chưa có evaluator model hay RAGAS metric thực tế.
 
 ## Kiến trúc và failure action
 
@@ -92,7 +92,7 @@ jobs:
 `check_lab.py` hiện đã trả nonzero khi attacks <15/20, có clean bị chặn, output case sai hoặc số liệu không khớp.
 Các ngưỡng chất lượng cao hơn (faithfulness ≥0.75, avg ≥0.65, attacks ≥18/20) cần một script `ci_gates.py` đọc
 JSON rồi `sys.exit(1)`; biến kiểu `MIN_FAITHFULNESS` chỉ là đề xuất và không tự tạo gate khi chưa có script này.
-Với kết quả hiện tại: chỉ có số Phase C — attacks 20/20 (≥18 đạt), clean 8/8, output 4/4 đều qua gate đề xuất; input guard P95 795.57 ms (gate full guard chưa áp dụng vì chưa đo full guard). Gate RAGAS chưa đánh giá được vì Phase A chưa chạy.
+Với kết quả hiện tại: Phase C có attacks 20/20 (≥18 đạt), clean 8/8, output 4/4 đều qua gate đề xuất; input guard P95 795.57 ms (gate full guard chưa áp dụng vì chưa đo full guard). Phase B đạt κ=1.000 trên 10 nhãn nhưng có position inconsistency 3/5 (60%), nên pairwise phải tiếp tục dùng swap-and-average và `tie` khi bất đồng. Gate RAGAS chưa đánh giá được vì Phase A chưa chạy.
 
 ## Monitoring và cải tiến
 
@@ -109,8 +109,8 @@ Với kết quả hiện tại: chỉ có số Phase C — attacks 20/20 (≥18 
 Privacy: không lưu PII gốc, chỉ bản anonymized; key ở secret store. Người xử lý: owner RAG xử lý cảnh báo RAGAS,
 owner guard xử lý false positive/latency; false positive được thêm vào clean set (không xóa attack cũ).
 
-RAGAS mean/worst distribution: chưa có — Phase A chưa chạy (chưa sinh được 50 answers trên máy trưởng nhóm do thiếu RAM; thành viên khác sẽ chạy).
-Cohen’s κ: chưa có — Phase B chưa chạy.
+RAGAS mean/worst distribution: chưa có — Phase A chưa chạy.
+Cohen’s κ: 1.000 trên 10/10 nhãn trùng human; pairwise position inconsistency: 3/5 (60%); verbosity win rate: 2/2 (100%, chỉ hai case decisive).
 Attacks passed: 20/20; clean false_positive_rate: 0.0 (8/8 allowed); output cases 4/4 đúng (201/202 giữ nguyên, 203/204 bị thay).
 
 Lịch sử thực nghiệm Phase C: lần chạy đầu với prompt self-check gốc đạt attacks 18/20 nhưng **chặn nhầm 1/8 câu sạch**

@@ -5,12 +5,12 @@ Nhóm: SKT
 Người phụ trách: Đỗ Trung Tuyến — 2A202602427 (code Tasks 5–8, thiết kế prompt, phân tích nguồn và nhãn người); kết quả chạy
 và diễn giải số liệu do thành viên chạy Phase B bổ sung.
 
-> **Trạng thái tại commit này:** Phase B **chưa chạy**. Runner cần `artifacts/answers_50q.json` (nguồn của answer A) nên phải
-> chờ setup. Mục ghi "CHỜ KẾT QUẢ" phải điền từ `artifacts/judge_results.json`; không điền winner/nhãn/κ ước lượng.
+> **Trạng thái:** Phase B đã chạy live thành công. Kết quả dưới đây lấy trực tiếp từ
+> `artifacts/judge_results.json`; không có winner, nhãn hay κ nào được điền ước lượng.
 
-Nguồn: `artifacts/judge_results.json`; run timestamp: CHỜ KẾT QUẢ (lấy `metadata.created_at`).
-Models generation/judge: dự kiến generation `gpt-4o-mini`; judge `gpt-4o-mini` cho cả pairwise (`config.JUDGE_MODEL`) và
-binary helper. Ghi lại đúng theo `metadata.models` sau khi chạy.
+Nguồn: `artifacts/judge_results.json`; run timestamp: `2026-10-12T05:32:33.849528+00:00`
+(12:32:33 ICT, UTC+07:00). Metadata không khai báo model generation (mảng `generation` rỗng); model judge thực tế là
+`gpt-4o-mini` cho cả pairwise (`config.JUDGE_MODEL`) và binary helper.
 
 ## Cách Task 5–8 được implement (đã xong, 8 unit tests pass)
 
@@ -47,13 +47,22 @@ Candidate B (cố định, đã biết trước khi chạy) so với reference:
 | 21 | Senior 9 năm: phép và lương? | 18 ngày; 20–35 triệu | 15+3=18 ngày (v2024); 20–35 triệu | đúng cả hai ý |
 | 41 | Nghỉ bao nhiêu ngày phép năm? | 12 ngày | 15 ngày theo v2024; v2023 (12) đã bị thay | sai phiên bản (bẫy v2023) |
 
-A (answer pipeline), winner hai lượt, scores, reasoning: CHỜ KẾT QUẢ — điền 5 rows từ `pairwise_results`
-(id, winner_pass1, winner_pass2 đã quy về A/B gốc, final_winner, position_consistent, scores hai lượt, tóm tắt reasoning).
+A (answer pipeline), winner hai lượt, scores và reasoning từ `pairwise_results`:
+
+| ID | Pass 1 | Pass 2 (quy về A/B gốc) | Final | Nhất quán | Scores pass 1 A/B | Scores pass 2 A/B | Tóm tắt reasoning |
+|---|---|---|---|---|---|---|---|
+| 1 | A | A | A | Có | 1.0 / 0.8 | 1.0 / 0.7 | Cả hai lượt ưu tiên A vì đầy đủ hơn về nghỉ phép đặc biệt; B vẫn đúng số ngày kết hôn. |
+| 5 | B | A | tie | Không | 0.3 / 0.5 | 0.7 / 0.0 | Cả A và B đều không nêu CEO theo reference; judge đổi lựa chọn khi đảo thứ tự nên giữ `tie`. |
+| 12 | A | A | A | Có | 1.0 / 0.5 | 1.0 / 0.7 | A bổ sung điều kiện ≥6 tháng và pro-rata dưới 6 tháng; B đúng mức tối thiểu nhưng ngắn hơn. |
+| 21 | tie | B | tie | Không | 1.0 / 1.0 | 0.8 / 1.0 | Lượt đầu xem hai đáp án tương đương; lượt đảo vị trí nghiêng về B nên kết quả cuối là `tie`. |
+| 41 | B | A | tie | Không | 0.0 / 0.0 | 1.0 / 0.0 | Cả hai dùng 12 ngày theo v2023, trái reference v2024 là 15 ngày; judge đổi lựa chọn khi đảo vị trí. |
+
 Khi đọc kết quả, cặp 5 và 41 là phép thử rõ nhất: B sai theo reference, nên nếu A đúng mà judge vẫn chọn B hoặc tie thì cần
 đọc reasoning. Cặp 1, 12, 21 có B đúng, nên `tie` hoặc chọn bản ngắn gọn hơn đều có thể hợp lý.
 
-Position bias count/rate: CHỜ KẾT QUẢ (`bias_report.position_bias_count`/`position_bias_rate`).
-Verbosity win rate: CHỜ KẾT QUẢ; decisive cases: CHỜ KẾT QUẢ.
+Position bias count/rate: **3/5 = 60%** (`position_bias_count=3`, `position_bias_rate=0.6`).
+Verbosity win rate: **2/2 = 100%**; decisive cases: **2**. Cả hai decisive cases đều là A thắng và A dài hơn
+(`a_wins_a_longer=2`, `b_wins_b_longer=0`).
 
 Cách diễn giải khi có số: một cặp không nhất quán chỉ cho biết judge đổi ý khi đổi thứ tự, không tự chứng minh nguyên nhân
 là position bias (có thể hai answer thật sự ngang nhau). Verbosity: B trong 5 cặp đều ngắn (1–2 câu) trong khi answer RAG
@@ -83,8 +92,23 @@ Phân tích 10 model_answer so với reference (làm trước khi chạy judge; 
 Theo phân tích này, các ca dễ lệch với người là **1 và 12** (đúng nhưng thiếu một ý trong reference; prompt helper chấm 0 nếu
 "thiếu ý thiết yếu") và **29** (một phần đúng). Đây là điểm cần đọc reasoning, không phải dự đoán nhãn của judge.
 
-Nhãn judge, reasoning, agree: CHỜ KẾT QUẢ — điền 10 rows theo đúng thứ tự `binary_judgments`.
-Cohen’s κ: CHỜ KẾT QUẢ (`calibration.cohen_kappa`).
+Nhãn judge, reasoning, agree từ `binary_judgments`:
+
+| ID | Nhãn judge | Nhãn human | Agree | Tóm tắt reasoning của judge |
+|---|---:|---:|---|---|
+| 1 | 1 | 1 | Có | Đúng số ngày nghỉ kết hôn và có lương. |
+| 5 | 0 | 0 | Có | Sai người phê duyệt: phải là Tổng Giám đốc. |
+| 12 | 1 | 1 | Có | Đúng điều kiện nhân viên chính thức từ 6 tháng và mức 1 tháng lương. |
+| 21 | 1 | 1 | Có | Đúng cả số ngày phép lẫn khoảng lương Senior. |
+| 23 | 1 | 1 | Có | Đúng phải hoàn trả 25 triệu khi chưa đủ cam kết 1 năm. |
+| 29 | 0 | 0 | Có | Thiếu Kế toán trưởng và tính phí phạt chưa đúng. |
+| 33 | 1 | 1 | Có | Đúng số ngày phép và tổng phụ cấp. |
+| 41 | 0 | 0 | Có | Dùng chính sách v2023; v2024 quy định 15 ngày phép. |
+| 46 | 1 | 1 | Có | Đúng không có phép năm khi thử việc và phải xin nghỉ không lương. |
+| 50 | 0 | 0 | Có | VPN cá nhân bị cấm theo reference. |
+
+Cohen’s κ: **1.000** (`calibration.cohen_kappa`). Judge trùng cả 10/10 nhãn human: `p_o=1.000`,
+`p_e=0.6×0.6 + 0.4×0.4 = 0.520`, nên `κ=(1.000-0.520)/(1-0.520)=1.000`.
 
 Observed/chance agreement: p_o = số nhãn trùng / 10; p_e = P_judge(1)·0.6 + P_judge(0)·0.4 (human có 6 nhãn 1, 4 nhãn 0).
 Độ nhạy của κ với bộ nhãn này (tính bằng `cohen_kappa` trên nhãn giả định lật từ nhãn human, **không phải kết quả judge**):
