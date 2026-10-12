@@ -29,6 +29,11 @@ BM25_TOP_K = 20
 DENSE_TOP_K = 20
 HYBRID_TOP_K = 20
 RERANK_TOP_K = 3
+# dtype khi nạp model trên CPU. Mặc định float32; máy ít RAM (commit limit thấp) có thể đặt
+# EMBEDDING_TORCH_DTYPE=bfloat16 để giảm ~1/2 bộ nhớ BGE-M3 (~2.2 GB). Reranker nên giữ float32:
+# CPU không có lệnh BF16 chạy reranker bfloat16 chậm hơn nhiều lần.
+EMBEDDING_TORCH_DTYPE = os.getenv("EMBEDDING_TORCH_DTYPE", "float32")
+RERANK_TORCH_DTYPE = os.getenv("RERANK_TORCH_DTYPE", "float32")
 
 # --- Paths ---
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))

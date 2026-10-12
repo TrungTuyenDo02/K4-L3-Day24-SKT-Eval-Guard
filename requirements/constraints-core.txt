@@ -10,3 +10,6 @@ nemoguardrails==0.10.0
 openai==1.109.1
 annoy==1.17.3
 numpy==1.26.4
+# Added 2026-10-12: pyarrow>=21 and pandas>=3 require NumPy 2, conflicting with numpy==1.26.4 above.
+pyarrow==20.0.0
+pandas==2.3.3
