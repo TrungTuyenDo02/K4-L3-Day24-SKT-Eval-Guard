@@ -169,7 +169,8 @@ def main(argv=None):
             print(f"  [{i+1}/{len(test_set)}] done ({time.time()-t_start:.0f}s elapsed)")
 
     os.makedirs(os.path.dirname(ANSWERS_PATH), exist_ok=True)
-    with open(ANSWERS_PATH, "w", encoding="utf-8") as f:
+    # LF trên mọi OS: Phase A/B hash đúng bytes file này; CRLF trên Windows sẽ lệch sau khi git chuẩn hóa LF.
+    with open(ANSWERS_PATH, "w", encoding="utf-8", newline="\n") as f:
         json.dump(answers, f, ensure_ascii=False, indent=2)
 
     print(f"\n✓ Saved {len(answers)} answers → artifacts/answers_50q.json")

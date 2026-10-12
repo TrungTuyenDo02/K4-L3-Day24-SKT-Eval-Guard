@@ -12,9 +12,9 @@
       ],
       "guard": []
     },
-    "created_at": "2026-10-12T11:27:10.261861+00:00",
+    "created_at": "2026-10-12T15:17:02.165044+00:00",
     "source_sha256": {
-      "answers_50q.json": "31cdd5c109d1b6dd46cedfb9676f41565b5ae4dedd1be577a1c6fce7f7440d0d",
+      "answers_50q.json": "161b47aa7298edb27aa39708e503d6ea046edc5ee08059b5a1187d9a12f82f0c",
       "test_set_50q.json": "3ad288426e3066e561737b35b66b671e6c411697dffd0d1161cc7b801e5954cc",
       "human_labels_10q.json": "37231c1f4a635801e27a98333898d2d4c9c3c71167e8b9e7259b90cec5956782"
     }
@@ -34,10 +34,10 @@
       "winner_pass2": "B",
       "final_winner": "B",
       "reasoning_pass1": "Answer B chính xác hơn vì nó bao gồm thông tin về việc nghỉ có lương, điều này là một phần quan trọng của chính sách. Answer A thiếu thông tin này.",
-      "reasoning_pass2": "Answer A chính xác hơn vì có thông tin 'có lương' mà Answer B thiếu, mặc dù cả hai đều cung cấp thông tin về số ngày nghỉ. Do đó, Answer A đầy đủ hơn.",
+      "reasoning_pass2": "Answer A chính xác hơn vì có thông tin 'có lương' và không trừ vào phép năm, trong khi Answer B thiếu thông tin này.",
       "position_consistent": true,
       "scores_pass1": {
-        "A": 0.75,
+        "A": 0.8,
         "B": 1.0
       },
       "scores_pass2": {
@@ -73,7 +73,7 @@
       "winner_pass1": "A",
       "winner_pass2": "tie",
       "final_winner": "tie",
-      "reasoning_pass1": "Answer A chính xác và đầy đủ, nêu rõ điều kiện về thời gian làm việc và số tiền thưởng. Answer B thiếu thông tin về điều kiện thời gian làm việc, không khớp hoàn toàn với reference.",
+      "reasoning_pass1": "Answer A chính xác và đầy đủ thông tin về thưởng Tết tối thiểu cho nhân viên có từ 6 tháng trở lên, trong khi Answer B thiếu điều kiện về thời gian làm việc.",
       "reasoning_pass2": "Cả hai câu trả lời đều chính xác và đầy đủ, khớp với thông tin trong reference. Cả hai đều nêu rõ mức thưởng Tết tối thiểu là 1 tháng lương mà không có thông tin thừa.",
       "position_consistent": false,
       "scores_pass1": {
@@ -113,8 +113,8 @@
       "winner_pass1": "A",
       "winner_pass2": "A",
       "final_winner": "A",
-      "reasoning_pass1": "Answer A chính xác với chính sách v2024, cung cấp thông tin đầy đủ về số ngày phép năm, trong khi Answer B sai lệch với thông tin đã được cập nhật.",
-      "reasoning_pass2": "Answer B chính xác với chính sách v2024, nêu rõ số ngày phép là 15 ngày, trong khi Answer A sai vì chỉ đề cập đến 12 ngày, không đúng với phiên bản hiện hành. Cả hai câu trả lời đều đầy đủ, nhưng Answer B chính xác hơn.",
+      "reasoning_pass1": "Answer A chính xác với chính sách v2024, cung cấp thông tin đầy đủ về số ngày phép năm. Answer B sai vì dựa trên chính sách cũ v2023.",
+      "reasoning_pass2": "Answer B chính xác hơn vì nó nêu rõ số ngày phép năm theo chính sách v2024, trong khi Answer A lại cung cấp thông tin không chính xác theo chính sách hiện hành. Cả hai câu trả lời đều đầy đủ, nhưng Answer B súc tích hơn.",
       "position_consistent": true,
       "scores_pass1": {
         "A": 1.0,
@@ -132,7 +132,7 @@
       "question": "Nhân viên được nghỉ bao nhiêu ngày khi kết hôn?",
       "model_answer": "Nhân viên được nghỉ 3 ngày làm việc có lương khi kết hôn.",
       "label": 1,
-      "reasoning": "Câu trả lời chính xác theo thông tin trong tài liệu tham khảo, nêu rõ số ngày nghỉ và điều kiện không trừ vào phép năm."
+      "reasoning": "Câu trả lời chính xác theo reference, đầy đủ thông tin về số ngày nghỉ và điều kiện không trừ vào phép năm."
     },
     {
       "question_id": 5,
@@ -153,21 +153,21 @@
       "question": "Một nhân viên Senior có 9 năm thâm niên được nghỉ bao nhiêu ngày phép năm và lương trong khoảng nào?",
       "model_answer": "Được nghỉ 18 ngày phép (15 cơ bản + 3 thâm niên). Lương Senior từ 20 đến 35 triệu.",
       "label": 1,
-      "reasoning": "Câu trả lời chính xác theo reference, nêu rõ số ngày phép và khoảng lương cho nhân viên Senior có 9 năm thâm niên."
+      "reasoning": "Câu trả lời chính xác theo reference, nêu rõ số ngày phép và khoảng lương cho nhân viên Senior với 9 năm thâm niên."
     },
     {
       "question_id": 23,
       "question": "Nhân viên được tài trợ khóa học 25 triệu, nghỉ việc sau 8 tháng. Phải hoàn trả bao nhiêu?",
       "model_answer": "Hoàn trả 25 triệu vì chưa đủ 1 năm cam kết.",
       "label": 1,
-      "reasoning": "Câu trả lời chính xác theo thông tin trong reference, nêu rõ lý do hoàn trả 25 triệu do chưa đủ 1 năm cam kết."
+      "reasoning": "Câu trả lời chính xác theo reference, nêu rõ số tiền phải hoàn trả và lý do nghỉ việc trước hạn cam kết."
     },
     {
       "question_id": 29,
       "question": "Nhân viên tạm ứng 8 triệu, chưa thanh toán sau 30 ngày. Ai phê duyệt và phí phạt là bao nhiêu?",
       "model_answer": "Trưởng phòng phê duyệt. Phạt 2% tháng trên 8 triệu.",
       "label": 0,
-      "reasoning": "Câu trả lời sai vì không đề cập đến sự cần thiết có sự phê duyệt của Kế toán trưởng bên cạnh Trưởng phòng. Ngoài ra, phí phạt được tính cho quá hạn 15 ngày, không phải 30 ngày như trong câu trả lời."
+      "reasoning": "Câu trả lời sai vì không đề cập đến sự cần thiết có sự phê duyệt của Kế toán trưởng bên cạnh Trưởng phòng. Ngoài ra, phí phạt được tính cho quá hạn 15 ngày, không phải là 2% trên 8 triệu mà là 80.000 VNĐ."
     },
     {
       "question_id": 33,
@@ -181,7 +181,7 @@
       "question": "Nhân viên được nghỉ bao nhiêu ngày phép năm?",
       "model_answer": "Nhân viên được nghỉ 12 ngày phép năm.",
       "label": 0,
-      "reasoning": "Câu trả lời sai vì nó dựa trên chính sách cũ (v2023) thay vì chính sách hiện hành (v2024), trong đó quy định nhân viên được nghỉ 15 ngày phép năm."
+      "reasoning": "Câu trả lời sai vì nó dựa trên chính sách cũ (v2023) thay vì chính sách hiện hành (v2024) là 15 ngày phép năm."
     },
     {
       "question_id": 46,

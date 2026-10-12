@@ -18,21 +18,30 @@ ghi đúng phần mình đã làm; mỗi người cần có commit trong repo ch
 | STT | Họ và tên | MSSV | Vai trò / công việc thật | Bằng chứng |
 |---|---|---|---|---|
 | 1 | Đỗ Trịnh Huy Hoàng | 2A202602392 | Chuẩn bị môi trường, chép m1–m5 vào `src/`, kiểm tra imports, tải model, khởi động Qdrant, chạy setup sinh 50 answers; phụ trách thực nghiệm Phase C (Tasks 9a–12) | `artifacts/answers_50q.json`, `artifacts/guard_results.json`; log setup và Phase C |
-| 2 | Đỗ Trung Tuyến | 2A202602427 | Trưởng nhóm. Chuẩn bị môi trường, tích hợp m1–m5; code Tasks 1–12 trong `src/phase_a_ragas.py`, `src/phase_b_judge.py`, `src/phase_c_guard.py`; cấu hình `guardrails/config.yml`; sửa adapter m4 (segmenter faithfulness); chuẩn hóa LF cho JSON (`.gitattributes`); chạy Phase A và chạy lại Phase B/C; viết `failure_clusters.md`, blueprint, cập nhật `bias_report.md` | Commits trên `main`; `artifacts/ragas_50q.json`, `judge_results.json`, `guard_results.json`; ba báo cáo trong `doc/reports/` |
+| 2 | Đỗ Trung Tuyến | 2A202602427 | Trưởng nhóm. Chuẩn bị môi trường, tích hợp m1–m5; code Tasks 1–12 trong `src/phase_a_ragas.py`, `src/phase_b_judge.py`, `src/phase_c_guard.py`; cấu hình `guardrails/config.yml`; sửa adapter m4 (segmenter faithfulness); chuẩn hóa LF cho JSON (`.gitattributes`); chạy Phase A và chạy lại Phase B/C trên answers Gemini; sửa ghi JSON LF và chạy lại Phase A/B trên answers gpt-4o-mini; viết `failure_clusters.md`, blueprint, cập nhật `bias_report.md`; hợp nhất bản cuối | Commits trên `main`; `artifacts/ragas_50q.json`, `judge_results.json` (lần chạy 22:16–22:17 ICT); ba báo cáo trong `doc/reports/` |
 | 3 | Ngô Thế Khanh | 2A202602503 | Phụ trách thực nghiệm Phase A trên bộ 50 answers hiện tại: chạy đánh giá RAGAS và theo dõi batch hoàn tất 200/200 lượt metric | `artifacts/answers_50q.json`, `artifacts/ragas_50q.json`; lệnh `python scripts/run_experiments.py --phase a --live` |
 | 4 | Vũ Đình Thư | 2A202602652 | Phụ trách Phase B (Tasks 5–8): pairwise judge, swap-and-average, đối chiếu nhãn nhị phân, Cohen’s κ và phân tích bias; chạy Phase B lần đầu | Commit `b67ba29`; `artifacts/judge_results.json`; log Phase B |
 
 Người tích hợp/nộp link: Đỗ Trung Tuyến. Đỗ Trịnh Huy Hoàng chạy setup tạo 50 answers; artifact hiện tại ghi generation_model là gpt-4o-mini-2024-07-18 (máy trưởng nhóm thiếu RAM ở lần setup ban đầu, xem dưới).
-Vũ Đình Thư chạy Phase B lần đầu (commit `b67ba29`). Trưởng nhóm chạy Phase A, rồi chạy lại Phase B và C trên answers hiện tại
-sau khi chuẩn hóa LF (lý do ở mục INDIVIDUAL), cập nhật ba báo cáo và chạy `scripts/check_lab.py --with-tests`.
+Vũ Đình Thư chạy Phase B lần đầu (commit `b67ba29`). Ngô Thế Khanh chạy Phase A trên bộ answers gpt-4o-mini và commit bộ
+artifacts đó (`81040ba`). Trưởng nhóm hợp nhất bản cuối: sửa ghi JSON LF, chạy lại Phase A/B trên đúng bộ answers đó, cập nhật
+ba báo cáo và chạy `scripts/check_lab.py --with-tests`.
 
-Lịch sử artifact cần phân biệt: commit 150cff2 có 50/50 answers extractive_fallback dù tiêu đề commit ghi Gemini; HEAD bb86e4b hiện tại có 50/50 answers Gemini/LLM được ghi lần cuối ở e51a24e, nhưng context chưa có prefix M5. Các artifacts trong working tree hiện tại là một lần chạy mới: 50/50 GPT/LLM với enrichment context và kết quả Phase A/B/C tương ứng; các cập nhật này chưa được commit.
+Lịch sử artifact cần phân biệt (artifacts cuối = dòng cuối):
+
+| Commit | Answers | Phase A/B/C | Ghi chú |
+|---|---|---|---|
+| `150cff2` | 50/50 `extractive_fallback` dù tiêu đề commit ghi Gemini | — | Không dùng để chấm |
+| `bb86e4b` | 50/50 Gemini (`gemini-3.5-flash-lite`), context chưa có prefix M5 | A/B/C chạy 17:00–17:12 ICT, checker 0 lỗi | Bị thay bởi bộ dưới |
+| `81040ba` | 50/50 `gpt-4o-mini-2024-07-18`, context có prefix M5 | A 18:25, B 18:27, C 18:28 ICT | A/B hash answers dạng CRLF → checker "Stale experiment source" |
+| commit hợp nhất (sau `5bcc628`) | giữ nguyên bộ của `81040ba` | **A 22:16, B 22:17 chạy lại; C giữ lần 18:28** | Checker 0 lỗi; số liệu báo cáo lấy từ đây |
 
 ## Môi trường và chuẩn bị trước lớp
 
-OS/Python/compiler: Windows 11 Home 10.0.26300, CPU Intel i5-8250U, RAM 12 GB, Python 3.12.10; `annoy==1.17.3` đã cài thành công trong virtualenv.
-Virtualenv/dependencies/imports: dùng virtualenv Python 3.12 hiện tại của repo (đã xác nhận .venv/Scripts/python.exe là 3.12.10),
-gọi trực tiếp `.venv/Scripts/python.exe`; cài bằng `requirements/requirements.txt -c requirements/constraints-core.txt`
+OS/Python/compiler (máy trưởng nhóm): Windows 11 Home 10.0.26300, CPU Intel i5-8250U, RAM 12 GB, Python 3.11.9; `annoy==1.17.3` đã cài thành công trong virtualenv.
+Virtualenv/dependencies/imports: máy trưởng nhóm dùng chung virtualenv Python 3.11 đã tạo cho repo Track 3B cùng đề (cùng
+requirements/constraints); lần chạy của Ngô Thế Khanh dùng virtualenv Python 3.12.10 của repo (theo ghi chú trong commit `81040ba`).
+Gọi trực tiếp `.venv/Scripts/python.exe`; cài bằng `requirements/requirements.txt -c requirements/constraints-core.txt`
 (ragas 0.1.22, langchain 0.2.17, nemoguardrails 0.10.0, openai 1.109.1, presidio 2.2.364, spaCy 3.8 + `en_core_web_lg` 3.8.0,
 qdrant-client 1.9.2, numpy 1.26.4). Thêm pin `pyarrow==20.0.0`, `pandas==2.3.3` vào constraints vì bản mới hơn đòi NumPy 2.
 `python -m pytest tests/ -q`: 86 passed, 3 deselected (integration).
@@ -81,7 +90,14 @@ và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy s
   - **Chạy và tích hợp kết quả cuối (sau khi có answers của Huy Hoàng):**
     - Checker báo Phase B lệch generation model (lần chạy đầu dùng answers cũ). Phát hiện thêm: Git `core.autocrlf=true` khiến
       JSON trên Windows là CRLF, nên mọi `source_sha256` (cả Phase C) sẽ lệch khi người chấm checkout LF. Thêm `.gitattributes`
-      (`*.json text eol=lf`), checkout lại, chạy lại Phase B và C; artifacts hiện tại ghi Phase C đạt 20/20, 8/8, 4/4 và input guard P95 808.09 ms.
+      (`*.json text eol=lf`), checkout lại, chạy lại Phase B và C trên answers Gemini (C giữ nguyên 20/20, 8/8, 4/4; P95 786.74 ms).
+      Artifact Phase C cuối cùng là lần chạy 18:28 ICT trong commit `81040ba` (20/20, 8/8, 4/4, P95 808.09 ms), không phải lần
+      chạy của trưởng nhóm.
+    - **Hợp nhất bản cuối:** commit `81040ba` thay answers bằng bộ gpt-4o-mini nhưng checker báo Phase A/B "Stale experiment
+      source". Truy vết: `setup_answers.py` và `write_json` ghi bằng text mode nên trên Windows ra CRLF; Phase A/B hash bản CRLF,
+      rồi git chuẩn hóa LF khi commit. `.gitattributes` chỉ sửa checkout, không sửa file do Python ghi. Sửa cả hai chỗ ghi thành
+      `newline="\n"`, chạy lại Phase A/B trên đúng bộ answers đó (không sinh lại), cập nhật ba báo cáo theo số mới, giữ phân
+      tích của các thành viên. Lần chạy lại cho thấy evaluator dao động: nhóm yếu nhất đảo từ adversarial sang multi_hop.
     - Phase A dừng hai lần vì faithfulness NaN. Truy vết: ragas 0.1.22 chỉ giữ câu kết thúc bằng "." nên answer dạng gạch đầu
       dòng không có statement → NaN tất định. Thêm `_LineSentenceSegmenter` trong `src/m4_eval.py` (áp dụng cho cả 50 câu,
       không đổi NaN thành 0), rồi chạy Phase A thành công.
@@ -94,9 +110,8 @@ và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy s
     không ghi trạng thái hết hiệu lực trong khi `mat_khau_v1.md` có, và dòng ngữ cảnh m5 chỉ ghi tên phiên bản; đề xuất sửa.
     Trong `bias_report.md`, đối chiếu 5 candidate B và 10 model_answer với reference, nêu ca dễ lệch (1, 12, 29) và tính độ
     nhạy κ theo số nhãn lệch.
-- Bằng chứng: commits trên `main`; `artifacts/ragas_50q.json` (adversarial 0.667 < multi_hop 0.677 < factual 0.859; faithfulness mean toàn bộ 0.689);
-  `artifacts/judge_results.json` (κ = 1.000, position inconsistency 1/5 (cặp 12); verbosity win rate 3/4); `artifacts/guard_results.json` (attacks 20/20,
-  clean 8/8 allowed, false_positive_rate 0.0, output 4/4, input guard P95 808.09 ms); ba báo cáo trong `doc/reports/`.
+- Bằng chứng: commits trên `main`; `artifacts/ragas_50q.json` (multi_hop 0.666 < adversarial 0.692 < factual 0.852; faithfulness mean toàn bộ 0.671);
+  `artifacts/judge_results.json` (κ = 1.000, position inconsistency 1/5 (cặp 12); verbosity win rate 3/4); ba báo cáo trong `doc/reports/`.
 - Cách kiểm tra: `python scripts/check_lab.py --with-tests` (86 unit tests + đối chiếu hợp đồng 4 JSON); chạy thật Presidio trên 28 inputs trước khi
   chạy batch để chắc 8 câu sạch không bị gắn PII; `python scripts/run_experiments.py --phase c --live --latency-samples 20`
   (runner tự validate schema/counts/percentile trước khi ghi file).
@@ -107,7 +122,8 @@ và chiếm ~4 GB RAM nên đã dừng, chuyển cho thành viên khác chạy s
   matrix worst_metric chỉ mô tả còn nhóm yếu phải chọn theo mean; trong Phase B, winner A/B khác nhãn 0/1.
   Từ artifacts hiện tại: RAGAS faithfulness cao không đảm bảo xử lý đúng phiên bản (câu 41–42 nêu cả hai phiên bản và đạt 1.0; câu 43 từ chối dù context có cả hai mức), và nhãn
   "hallucinating" tự động sai với câu "Không tìm thấy."; bằng chứng hash phụ thuộc cả line ending, nên artifact sinh trên
-  Windows phải được kiểm tra với bản checkout LF.
+  Windows phải được kiểm tra với bản checkout LF — và phải sửa ở chỗ ghi file, không chỉ ở `.gitattributes`. RAGAS chạy
+  hai lần trên cùng answers có thể đảo thứ hạng nhóm, nên không kết luận từ chênh lệch nhỏ của một lần chạy.
 - Giới hạn/cách xử lý: lần chạy Phase C đầu chặn nhầm 1/8 câu sạch (id 107, quy định độ dài mật khẩu) và lọt 2 câu
   off-topic (id 11, 15); nguyên nhân là prompt dùng "credentials" mơ hồ và không nêu rõ phạm vi. Đã viết lại prompt theo quy tắc
   tổng quát, không sửa fixtures, rồi chạy lại toàn bộ batch C. Vì prompt được chỉnh sau khi xem kết quả trên chính bộ 28 câu,

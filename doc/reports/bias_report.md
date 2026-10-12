@@ -4,9 +4,9 @@ Nhóm: SKT
 
 Người phụ trách code và tích hợp: Đỗ Trung Tuyến — 2A202602427. Thực nghiệm Phase B: Vũ Đình Thư — 2A202602652.
 
-Nguồn số liệu: artifacts/judge_results.json; answers A từ artifacts/answers_50q.json. Thời điểm: 2026-10-12 18:27:10 ICT. Answers A trong artifact hiện tại được sinh bằng gpt-4o-mini-2024-07-18; judge là gpt-4o-mini. Đây không phải bản Gemini/fallback được mô tả trong một số ghi chú cũ.
+Nguồn số liệu: artifacts/judge_results.json; answers A từ artifacts/answers_50q.json. Thời điểm: 2026-10-12 22:17:02 ICT (chạy lại; lần đầu trên cùng answers: 18:27:10 ICT). Answers A trong artifact hiện tại được sinh bằng gpt-4o-mini-2024-07-18; judge là gpt-4o-mini. Đây không phải bản Gemini/fallback được mô tả trong một số ghi chú cũ.
 
-Lưu ý provenance: commit 150cff2 có 50 answers fallback; HEAD hiện tại là bb86e4b với answers Gemini/LLM được ghi lần cuối ở e51a24e. Working tree hiện có một bộ answers mới khác nữa. Pairwise và calibration dưới đây lấy đúng answers/artifact trong working tree hiện tại; chúng không phải đánh giá trên bộ fallback của commit 150cff2.
+Lưu ý provenance: commit 150cff2 có 50 answers fallback; bb86e4b có answers Gemini/LLM; bộ answers gpt-4o-mini hiện tại được commit ở 81040ba. Pairwise và calibration dưới đây lấy đúng bộ answers hiện tại; chúng không phải đánh giá trên bộ fallback của commit 150cff2. Lần chạy của Khanh (Phase A 18:25, Phase B 18:27 ICT) hash `answers_50q.json` khi file còn CRLF; sau khi git chuẩn hóa LF, checker báo "Stale experiment source". Nhóm sửa hai chỗ ghi JSON thành `newline="\n"` và chạy lại Phase A/B trên đúng bộ answers đó (không sinh lại answers). So với lần 18:27, winner, nhãn, κ và bias giống hệt; chỉ điểm lượt 1 cặp 1 đổi A 0.75 → 0.80.
 
 ## Cách Task 5–8 được implement
 
@@ -22,7 +22,7 @@ B là câu trả lời cố định trong fixture; A là answer pipeline hiện 
 
 | ID | A — pipeline | B — fixture | Pass 1 | Pass 2 | Kết quả | Scores A/B pass 1 → pass 2 | Nhận xét |
 |---:|---|---|---|---|---|---|---|
-| 1 | 3 ngày làm việc khi kết hôn | 3 ngày làm việc có lương | B | B | B | 0.75/1.00 → 0.80/1.00 | B bổ sung điều kiện nghỉ có lương. |
+| 1 | 3 ngày làm việc khi kết hôn | 3 ngày làm việc có lương | B | B | B | 0.80/1.00 → 0.80/1.00 | B bổ sung điều kiện nghỉ có lương. |
 | 5 | Cần Tổng Giám đốc (CEO) | Cần Giám đốc phòng ban | A | A | A | 1.00/0.00 → 1.00/0.00 | A khớp reference; B sai người phê duyệt. |
 | 12 | Thưởng Tết tối thiểu 1 tháng lương cho nhân viên chính thức đủ 6 tháng | Tối thiểu 1 tháng lương | A | tie | tie | 1.00/0.50 → 1.00/1.00 | Hai lượt không nhất quán; nội dung gần nhau, khác mức độ nêu điều kiện. |
 | 21 | Answer dài: 18 ngày theo phép tính 12+6; không tìm thấy lương | 18 ngày theo 15+3; lương Senior 20–35 triệu | B | B | B | 0.60/1.00 → 0.50/1.00 | B có breakdown đúng theo v2024 và trả lời phần lương; A dùng sai breakdown, thiếu dữ kiện lương. |

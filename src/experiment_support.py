@@ -19,7 +19,7 @@ def write_json(path, payload):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False) + "\n",
-                    encoding="utf-8")
+                    encoding="utf-8", newline="\n")
 
 
 MODEL_ROLES = ("generation", "evaluator", "judge", "guard")

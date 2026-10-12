@@ -4,9 +4,9 @@ Nhóm: SKT
 
 Người phụ trách: Đỗ Trung Tuyến — 2A202602427.
 
-Đây là đề xuất CI/CD, không phải workflow đã được triển khai/chạy. Số liệu hiện tại lấy từ artifacts/ragas_50q.json, artifacts/judge_results.json và artifacts/guard_results.json. Phase A chạy lúc 2026-10-12 18:25:03 ICT, Phase B lúc 18:27:10 ICT, Phase C lúc 18:28:33 ICT. Answers hiện tại là 50/50 LLM, model gpt-4o-mini-2024-07-18; judge và guard là gpt-4o-mini. Context trong answers có enrichment prefix M5. Những ghi chú cũ về Gemini, điểm Phase A và latency Phase C không mô tả các artifact hiện tại.
+Đây là đề xuất CI/CD, không phải workflow đã được triển khai/chạy. Số liệu hiện tại lấy từ artifacts/ragas_50q.json, artifacts/judge_results.json và artifacts/guard_results.json. Phase A chạy lúc 2026-10-12 22:16:31 ICT, Phase B lúc 22:17:02 ICT (chạy lại, xem dưới), Phase C lúc 18:28:33 ICT. Answers hiện tại là 50/50 LLM, model gpt-4o-mini-2024-07-18; judge và guard là gpt-4o-mini. Context trong answers có enrichment prefix M5. Những ghi chú cũ về Gemini, điểm Phase A và latency Phase C không mô tả các artifact hiện tại.
 
-Lịch sử Git có commit 150cff2 với 50/50 answers extractive_fallback dù tên commit ghi Gemini. HEAD hiện tại bb86e4b có 50/50 answers Gemini/LLM được ghi lần cuối ở e51a24e, nhưng context chưa có tiền tố M5. Số liệu blueprint này lấy từ artifacts mới hơn trong working tree; chúng chưa được commit.
+Lịch sử Git có commit 150cff2 với 50/50 answers extractive_fallback dù tên commit ghi Gemini. Commit bb86e4b có 50/50 answers Gemini/LLM được ghi lần cuối ở e51a24e, nhưng context chưa có tiền tố M5. Số liệu blueprint này lấy từ bộ answers gpt-4o-mini commit ở 81040ba. Lần chạy của Khanh (Phase A 18:25, Phase B 18:27 ICT) hash `answers_50q.json` khi file còn CRLF; sau khi git chuẩn hóa LF, checker báo "Stale experiment source". Nhóm sửa hai chỗ ghi JSON thành `newline="\n"` và chạy lại Phase A/B trên đúng bộ answers đó (không sinh lại answers). Phase C chỉ hash fixtures (vẫn LF) nên giữ nguyên lần chạy 18:28.
 
 ## Kiến trúc và failure action
 
@@ -46,8 +46,8 @@ Các gate sau là ngưỡng đề xuất, hiện không phải toàn bộ gate c
 
 Đối chiếu artifact hiện tại:
 
-- Phase A faithfulness mean = 0.689, thấp hơn ngưỡng đề xuất 0.75; avg_score = 0.748, cao hơn 0.65. Vì vậy một gate kết hợp cả hai sẽ không đạt.
-- Distribution avg_score: factual 0.859, multi_hop 0.677, adversarial 0.667. Adversarial thấp nhất; khoảng cách với multi_hop chỉ 0.011.
+- Phase A faithfulness mean = 0.671, thấp hơn ngưỡng đề xuất 0.75; avg_score = 0.745, cao hơn 0.65. Vì vậy một gate kết hợp cả hai sẽ không đạt.
+- Distribution avg_score: factual 0.852, multi_hop 0.666, adversarial 0.692. Multi_hop thấp nhất; lần chạy 18:25 trên cùng answers cho adversarial thấp nhất (0.667 < 0.677). Thứ tự hai nhóm khó đảo giữa hai lần chạy do evaluator dao động (cùng answer câu 48 được faithfulness 0 rồi 1), nên gate RAGAS cần chạy lặp và so khoảng dao động, không so một lần.
 - Bảy answers là “Không tìm thấy.”; có trường hợp context đủ để trả lời phủ định (44, 48, 50) và trường hợp retrieval thiếu một phần (22, 33, 39). Cần thêm kiểm tra answer/context theo reference, không chỉ mean.
 - Phase B: κ = 1.000 trên 10 nhãn; position inconsistency 1/5; verbosity win rate 3/4 decisive pairs. Mẫu nhỏ nên tie hoặc reasoning sai cần người review.
 - Phase C đạt 20/20 attacks, 8/8 clean controls và 4/4 output cases; latency input P95 chưa đạt target.

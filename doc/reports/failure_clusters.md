@@ -2,9 +2,16 @@
 
 Nhóm: SKT
 
-Người phụ trách phân tích: Đỗ Trung Tuyến — 2A202602427. Thực nghiệm Phase A: Ngô Thế Khanh — 2A202602503.
+Người phụ trách phân tích: Đỗ Trung Tuyến — 2A202602427. Thực nghiệm Phase A trên bộ answers gpt-4o-mini: Ngô Thế Khanh —
+2A202602503 (lần chạy 18:25 ICT); chạy lại để làm mới hash: Đỗ Trung Tuyến.
 
-Nguồn số liệu: artifacts/ragas_50q.json và artifacts/answers_50q.json. Thời điểm Phase A: 2026-10-12 18:25:03 ICT (UTC+07:00).
+Nguồn số liệu: artifacts/ragas_50q.json và artifacts/answers_50q.json. Thời điểm Phase A: 2026-10-12 22:16:31 ICT (UTC+07:00).
+
+> **Vì sao chạy lại Phase A lúc 22:16.** Lần chạy của Khanh (18:25) hash `answers_50q.json` khi file còn dạng CRLF
+> (`setup_answers.py` ghi bằng text mode trên Windows). Khi commit, `.gitattributes` chuyển file sang LF, nên checker báo
+> "Stale experiment source: answers_50q.json" cho Phase A và B. Nhóm sửa hai chỗ ghi JSON thành `newline="\n"`
+> (`scripts/setup_answers.py`, `src/experiment_support.write_json`) và chạy lại Phase A/B trên **đúng** bộ answers của Khanh,
+> không sinh lại answers, không đổi code đánh giá. Số liệu dưới đây là lần chạy lại; chỗ nào khác lần 18:25 được ghi rõ.
 
 ## Phân biệt các phiên bản trong Git
 
@@ -12,7 +19,8 @@ Nhận xét về fallback đúng với commit 150cff2 (feat: add Gemini generati
 
 ASSIGNMENT.md cho phép fallback nếu ghi rõ. Nếu chấm Phase A/B trên artifact của 150cff2 thì phải công khai đó là extractive fallback; Phase A khi ấy đo retrieval/context copying, còn Phase B so sánh đoạn trích với candidate B, nên không đại diện cho chất lượng câu trả lời do LLM/RAG sinh.
 
-Ở HEAD bb86e4b (answers được ghi lần cuối trong commit e51a24e), file answers có 50/50 generation_mode=llm, model gemini-3.5-flash-lite; Phase A/B trong HEAD cũng ghi model Gemini. Tuy nhiên contexts ở bản HEAD vẫn chưa có tiền tố enrichment M5. Báo cáo hiện tại mô tả các artifacts mới hơn đang có trong working tree: 50/50 câu do gpt-4o-mini-2024-07-18 sinh, contexts có enrichment prefix; các file này chưa được commit. Như vậy lịch sử từng có một commit fallback thật, nhưng nó khác cả HEAD và bộ kết quả hiện tại.
+Ở commit bb86e4b (answers được ghi lần cuối trong commit e51a24e), file answers có 50/50 generation_mode=llm, model gemini-3.5-flash-lite; Phase A/B ở commit đó cũng ghi model Gemini. Tuy nhiên contexts ở bản đó vẫn chưa có tiền tố enrichment M5. Báo cáo hiện tại mô tả bộ artifacts mới hơn, commit trong `81040ba` (Khanh) và chạy lại Phase A/B sau đó: 50/50 câu do
+gpt-4o-mini-2024-07-18 sinh, contexts có enrichment prefix. Như vậy lịch sử từng có một commit fallback thật, nhưng nó khác cả bản Gemini (bb86e4b) và bộ kết quả hiện tại.
 
 ## Xác nhận bộ answers và enrichment
 
@@ -36,12 +44,21 @@ Ghi chú cấu hình: ENRICH_PREFIX_MIN_CHARS và GEMINI_EMBEDDING_MODEL hiện 
 
 | Distribution | n | Faithfulness | Answer relevancy | Context precision | Context recall | Avg score |
 |---|---:|---:|---:|---:|---:|---:|
-| factual | 20 | 0.933 | 0.551 | 1.000 | 0.950 | 0.859 |
-| multi_hop | 20 | 0.490 | 0.465 | 0.933 | 0.821 | 0.677 |
-| adversarial | 10 | 0.600 | 0.391 | 0.958 | 0.717 | 0.667 |
-| Toàn bộ | 50 | 0.689 | 0.485 | 0.965 | 0.852 | 0.748 |
+| factual | 20 | 0.933 | 0.552 | 0.971 | 0.950 | 0.852 |
+| multi_hop | 20 | 0.394 | 0.506 | 0.942 | 0.821 | 0.666 |
+| adversarial | 10 | 0.700 | 0.391 | 0.958 | 0.717 | 0.692 |
+| Toàn bộ | 50 | 0.671 | 0.502 | 0.957 | 0.852 | 0.745 |
 
-Adversarial là nhóm thấp nhất (0.667), sát với multi_hop (0.677); factual đạt 0.859. Context precision cao ở cả ba nhóm, nhưng không đồng nghĩa mọi ý cần trả lời đều được retrieve. Faithfulness toàn bộ là 0.689, thấp hơn ngưỡng 0.75 được đề xuất trong blueprint; checker qua không có nghĩa chất lượng RAG đạt ngưỡng đó.
+**Multi_hop là nhóm thấp nhất (0.666)**, adversarial 0.692, factual 0.852. Lần chạy 18:25 trên cùng answers cho thứ tự
+ngược lại (adversarial 0.667 < multi_hop 0.677). Thứ tự đảo do evaluator, không do answers:
+
+- Câu 48 (answer "Không tìm thấy.", input giống hệt) được faithfulness **0** lần trước và **1** lần này, làm adversarial tăng 0.025.
+- Câu 35 (answer đúng, tính 85% × 12 triệu) faithfulness giảm 0.667 → 0.2; câu 21, 27, 37 cũng đổi hơn 0.05 avg.
+
+Vì hai nhóm khó chỉ cách nhau 0.01–0.03 và đổi thứ tự giữa hai lần chạy, kết luận chắc chắn là: **cả multi_hop và
+adversarial đều thấp hơn factual khoảng 0.16–0.19**, còn nhóm nào thấp nhất không ổn định. Context precision cao ở cả ba
+nhóm, nhưng không đồng nghĩa mọi ý cần trả lời đều được retrieve. Faithfulness toàn bộ là 0.671, thấp hơn ngưỡng 0.75 được
+đề xuất trong blueprint; checker qua không có nghĩa chất lượng RAG đạt ngưỡng đó.
 
 ## Bottom 10 và nguyên nhân đọc thủ công
 
@@ -53,26 +70,34 @@ Bảng xếp hạng/metric lấy từ artifact; nhận định nguyên nhân d�
 | 2 | 33 | multi_hop | 0.375 | 0 / 0 / 1 / 0.5 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal dù context có 15 ngày và quy tắc thâm niên; chưa có đủ phụ cấp ăn trưa và điện thoại Manager. Retrieval thiếu một phần, refusal toàn bộ làm mất phần có thể trả lời. |
 | 3 | 44 | adversarial | 0.396 | 0 / 0 / 0.583 / 1 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal dù contexts có cả 90 ngày và 120 ngày, cùng ghi chú v1.0 bị thay thế bởi v2.0. Cần ưu tiên 120 ngày. |
 | 4 | 43 | adversarial | 0.417 | 0 / 0 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal; contexts có cả 12 và 8 ký tự nhưng nhãn phiên bản chưa rõ/không nhất quán. Có dữ kiện để trả lời theo v2.0 nếu metadata phiên bản được xử lý đúng. |
-| 5 | 48 | adversarial | 0.417 | 0 / 0 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal dù context nói rõ nhân viên thử việc chưa được hưởng PVI. Lỗi trả lời phủ định có căn cứ. |
-| 6 | 50 | adversarial | 0.417 | 0 / 0 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal dù context cấm NordVPN/ExpressVPN và yêu cầu VPN WireGuard công ty. Lỗi trả lời phủ định có căn cứ. |
-| 7 | 22 | multi_hop | 0.417 | 0 / 0 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal dù context xác nhận cấu hình laptop cần CNTT và 30 triệu thuộc thẩm quyền Director; context không có yêu cầu 3 báo giá. Nên trả lời phần có căn cứ và nêu phần chưa tìm được. |
-| 8 | 31 | multi_hop | 0.539 | 0 / 0.489 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Answer tính đúng 1.200.000 × 2 = 2.400.000 VNĐ; context hỗ trợ trực tiếp. Faithfulness=0 là bất đồng đáng ngờ của evaluator, không phải lỗi câu trả lời hiển nhiên. |
-| 9 | 21 | multi_hop | 0.548 | 0.857 / 0 / 0.833 / 0.5 | answer_relevancy | Answer doesn't match question → Improve prompt template | Answer ra tổng 18 ngày nhưng giải thích sai thành 12+6 thay vì 15+3; không có context mức lương Senior nên thiếu phần lương. Cả version handling và retrieval đều cần cải thiện. |
-| 10 | 5 | factual | 0.592 | 0 / 0.367 / 1 / 1 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Answer nói CEO và context có dòng “trên 50 triệu → CEO”, khớp ground truth. Faithfulness=0 cho thấy diagnosis tự động có thể sai. |
+| 5 | 50 | adversarial | 0.417 | 0 / 0 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal dù context cấm NordVPN/ExpressVPN và yêu cầu VPN WireGuard công ty. Lỗi trả lời phủ định có căn cứ. |
+| 6 | 22 | multi_hop | 0.417 | 0 / 0 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Refusal dù context xác nhận cấu hình laptop cần CNTT và 30 triệu thuộc thẩm quyền Director; context không có yêu cầu 3 báo giá. Nên trả lời phần có căn cứ và nêu phần chưa tìm được. |
+| 7 | 31 | multi_hop | 0.539 | 0 / 0.489 / 1 / 0.667 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Answer tính đúng 1.200.000 × 2 = 2.400.000 VNĐ; context hỗ trợ trực tiếp. Faithfulness=0 là bất đồng đáng ngờ của evaluator, không phải lỗi câu trả lời hiển nhiên. |
+| 8 | 5 | factual | 0.592 | 0 / 0.367 / 1 / 1 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Answer nói CEO và context có dòng “trên 50 triệu → CEO”, khớp ground truth. Faithfulness=0 cho thấy diagnosis tự động có thể sai. |
+| 9 | 38 | multi_hop | 0.625 | 0 / 0.5 / 1 / 1 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Answer “600 USD (200 USD/đêm × 3 đêm)” đúng ground truth; context 1 ghi “thành phố lớn: 200 USD/đêm”. Faithfulness=0 vì evaluator không coi phép nhân là suy ra từ context — lỗi evaluator, không phải generation. |
+| 10 | 35 | multi_hop | 0.639 | 0.2 / 0.605 / 1 / 0.75 | faithfulness | LLM hallucinating → Tighten system prompt, lower temperature | Answer tính đúng 85% × 12 triệu = 10.200.000 VNĐ và nêu phụ cấp ăn trưa từ ngày đầu (context 1 có nguyên văn), nhưng thiếu số tiền 1.000.000 VNĐ và tổng 11.200.000 VNĐ. Lần 18:25 faithfulness 0.667. Thiếu ý nhỏ + evaluator dao động. |
 
-Có 7 answer “Không tìm thấy” trong 50 câu: 22, 33, 39, 43, 44, 48, 50. Chúng không cùng một loại lỗi: 39 thiếu nhiều dữ kiện; 33/22 thiếu một phần context; 44/48/50 có dữ kiện quan trọng; 43 có dữ kiện nhưng version metadata nhập nhằng. Các refusal cũng không phải hallucination. Ngược lại, câu 5 và 31 có answer được context hỗ trợ nhưng faithfulness bằng 0. Vì vậy cần đọc tay các ca thấp điểm thay vì coi metric/chẩn đoán tự động là sự thật.
+Có 7 answer “Không tìm thấy” trong 50 câu: 22, 33, 39, 43, 44, 48, 50; 6 câu nằm trong bottom 10. Câu 48 ra khỏi bottom 10
+lần này chỉ vì evaluator chấm faithfulness = 1 cho “Không tìm thấy.” (lần trước 0), dù context nêu rõ thử việc chưa được hưởng
+PVI — về nội dung nó vẫn là lỗi như 50. Chúng không cùng một loại lỗi: 39 thiếu nhiều dữ kiện; 33/22 thiếu một phần context;
+44/48/50 có dữ kiện quan trọng; 43 có dữ kiện nhưng version metadata nhập nhằng. Các refusal cũng không phải hallucination.
+Ngược lại, **4/10 câu bottom có answer đúng/được context hỗ trợ** (5, 31, 38, phần lớn 35) nhưng faithfulness 0–0.2; ba câu
+31, 35, 38 đều có phép tính, cho thấy evaluator gpt-4o-mini phạt các con số tự tính. Vì vậy cần đọc tay các ca thấp điểm thay vì coi metric/chẩn đoán tự động là sự thật.
 
 ## Matrix worst_metric × distribution
 
 | Worst metric | factual | multi_hop | adversarial | Tổng |
 |---|---:|---:|---:|---:|
-| faithfulness | 2 | 12 | 4 | 18 |
-| context_recall | 1 | 0 | 3 | 4 |
+| faithfulness | 2 | 14 | 3 | 19 |
+| context_recall | 1 | 1 | 3 | 5 |
 | context_precision | 0 | 0 | 0 | 0 |
-| answer_relevancy | 17 | 8 | 3 | 28 |
+| answer_relevancy | 17 | 5 | 4 | 26 |
 | Tổng | 20 | 20 | 10 | 50 |
 
-Answer relevancy là worst_metric thường gặp nhất (28/50), còn nhóm yếu nhất theo avg_score là adversarial. Hai con số trả lời hai câu hỏi khác nhau: metric nào thường thấp nhất và loại câu nào có điểm trung bình thấp nhất. Context recall adversarial là 0.717, thấp hơn factual và multi_hop.
+Answer relevancy là worst_metric thường gặp nhất (26/50), còn nhóm yếu nhất theo avg_score là multi_hop; artifact ghi
+`dominant_failure_metric = answer_relevancy` vì đó là metric hay thấp nhất trên toàn bộ câu. Riêng trong multi_hop, faithfulness
+là worst_metric của 14/20 câu (mean 0.394), nên lỗi chủ đạo của nhóm yếu nhất là faithfulness: refusal (22, 33, 39) và
+các câu có phép tính bị evaluator chấm thấp (31, 35, 38). Hai con số trả lời hai câu hỏi khác nhau: metric nào thường thấp nhất và loại câu nào có điểm trung bình thấp nhất. Context recall adversarial là 0.717, thấp hơn factual và multi_hop.
 
 ## Đối chiếu 10 câu adversarial
 
@@ -85,11 +110,16 @@ Answer relevancy là worst_metric thường gặp nhất (28/50), còn nhóm y�
 | 45 | MFA | Trả lời bắt buộc cho email, VPN, hệ thống nội bộ | Đúng nội dung được hỏi. |
 | 46 | Phủ định nghỉ phép thử việc | Trả lời không được nghỉ phép năm | Đúng ý chính, thiếu điều kiện xin nghỉ không lương và trưởng phòng phê duyệt. |
 | 47 | Malware | Khuyên không tự xử lý | Đúng ý chính, thiếu yêu cầu báo sự cố trong 1 giờ và kênh liên hệ. |
-| 48 | Phủ định PVI | Không tìm thấy | Context nêu rõ thử việc chưa được hưởng PVI; nên trả lời không. |
+| 48 | Phủ định PVI | Không tìm thấy | Context nêu rõ thử việc chưa được hưởng PVI; nên trả lời không. Faithfulness 0 (18:25) rồi 1 (22:16) cho cùng answer. |
 | 49 | Hỏi bản cũ và hiện hành | Nêu 12 ngày v2023 và 15 ngày v2024 | Đúng hai mức cơ bản; chưa nêu các quy tắc thâm niên theo từng phiên bản. |
 | 50 | VPN cá nhân | Không tìm thấy | Context cấm VPN cá nhân và yêu cầu WireGuard công ty; nên bác bỏ giả định. |
 
 RAGAS không tự phát hiện được mọi sai sót phiên bản: câu 41 và 42 có faithfulness 1.0 dù cần diễn giải trạng thái chính sách cẩn thận. Cần đánh giá theo reference và kiểm tra thủ công các câu version conflict.
+
+Bonus (adversarial mean < factual mean): **0.692 < 0.852**. Theo nội dung, chỉ 41, 45, 46, 47 trả lời đúng ý chính (46, 47
+thiếu ý phụ); 42, 49 nêu cả hai phiên bản; 43, 44, 48, 50 từ chối dù có dữ kiện. Bẫy hiệu quả nhất là **version conflict
+trên cặp mật khẩu** (43, 44 đều từ chối) và **phủ định bác bỏ giả định** (48, 50). Với cặp nghỉ phép (41, 42, 49) pipeline
+xử lý tốt hơn: tiền tố m5 nêu phiên bản, dù có chỗ gọi v2023 là "hiện hành".
 
 ## Đề xuất sửa có thể kiểm tra
 
@@ -101,6 +131,8 @@ RAGAS không tự phát hiện được mọi sai sót phiên bản: câu 41 và
 
 ## Giới hạn
 
-- 10 câu adversarial là mẫu nhỏ; chênh biệt giữa adversarial và multi_hop chỉ khoảng 0.011.
+- 10 câu adversarial là mẫu nhỏ; chênh lệch giữa adversarial và multi_hop chỉ 0.026 (lần 18:25: 0.010, ngược chiều).
+- Evaluator không lặp lại được: cùng answers, hai lần chạy cách nhau 4 giờ có 8 câu đổi avg_score hơn 0.05, và đảo nhóm
+  yếu nhất. Muốn so sánh trước/sau một thay đổi pipeline cần chạy RAGAS nhiều lần và so khoảng dao động, không so một lần.
 - Một số câu trả lời chính xác theo context lại có faithfulness=0; diễn giải điểm cần đối chiếu thủ công.
 - Hai PDF scan BCTC.pdf và Nghị định 13 không có text layer nên bị bỏ qua, không được đánh giá bằng bộ này.
