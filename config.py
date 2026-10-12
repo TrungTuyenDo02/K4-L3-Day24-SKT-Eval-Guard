@@ -7,6 +7,13 @@ load_dotenv()
 
 # --- API Keys ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "gemini-embedding-001")
+GEMINI_RPM = int(os.getenv("GEMINI_RPM", "12"))
+GEMINI_MAX_RETRIES = int(os.getenv("GEMINI_MAX_RETRIES", "3"))
+GEMINI_QUOTA_GIVE_UP_AFTER = int(os.getenv("GEMINI_QUOTA_GIVE_UP_AFTER", "30"))
+GEMINI_OPENAI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 HF_TOKEN = os.getenv("HF_TOKEN", "")  # Optional: for HuggingFace models
 
 # --- Qdrant (same as Day 18) ---
@@ -29,6 +36,7 @@ BM25_TOP_K = 20
 DENSE_TOP_K = 20
 HYBRID_TOP_K = 20
 RERANK_TOP_K = 3
+ENRICH_PREFIX_MIN_CHARS = int(os.getenv("ENRICH_PREFIX_MIN_CHARS", "200"))
 # dtype khi nạp model trên CPU. Mặc định float32; máy ít RAM (commit limit thấp) có thể đặt
 # EMBEDDING_TORCH_DTYPE=bfloat16 để giảm ~1/2 bộ nhớ BGE-M3 (~2.2 GB). Reranker nên giữ float32:
 # CPU không có lệnh BF16 chạy reranker bfloat16 chậm hơn nhiều lần.
@@ -50,7 +58,10 @@ GUARDRAILS_CONFIG_DIR = os.path.join(ROOT_DIR, "guardrails")
 PAIR_QUESTION_IDS = (1, 5, 12, 21, 41)
 
 # --- LLM Judge ---
-GENERATION_MODEL = "gpt-4o-mini"
+GENERATION_MODEL = os.getenv(
+    "GENERATION_MODEL",
+    GEMINI_MODEL if GEMINI_API_KEY and not OPENAI_API_KEY else "gpt-4o-mini",
+)
 JUDGE_MODEL = "gpt-4o-mini"
 
 # --- Guardrail latency budget ---
