@@ -4,6 +4,7 @@
 
 **Thời lượng trên lớp:** 15 phút kiểm tra sẵn sàng + 90 phút thực hành
 (Phase A/B/C, mỗi phase 30 phút).
+.
 
 **Điểm:** 100 điểm bắt buộc + tối đa 10 bonus cho bài lab.
 
